@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 
-const Sidebar = () => {
-  const [isOpen, setIsOpen] = useState(false);
+const Sidebar = ({ isOpen, setIsOpen }) => {
   const navigate = useNavigate();
 
   const [darkMode, setDarkMode] = useState(() => {
@@ -31,6 +30,7 @@ const Sidebar = () => {
     { name: "Applications", icon: "assignment", path: "/applications" },
     { name: "Students", icon: "group", path: "/students" },
     { name: "Instructors", icon: "badge", path: "/instructors" },
+    { name: "fleet", icon: "directions_car", path: "/fleet" },
     { name: "Packages", icon: "inventory_2", path: "/packages" },
     { name: "Schedule", icon: "calendar_today", path: "/schedule" },
     { name: "Attendance", icon: "fact_check", path: "/attendance" },
@@ -41,16 +41,7 @@ const Sidebar = () => {
 
   return (
     <>
-      {/* MOBILE TOGGLE */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="md:hidden fixed top-6 left-4 z-50 p-2 bg-white dark:bg-slate-800 rounded-lg shadow-md border border-slate-200 dark:border-slate-700"
-      >
-        <span className="material-symbols-outlined text-navy dark:text-white">
-          {isOpen ? "close" : "menu"}
-        </span>
-      </button>
-
+      {/* Overlay for mobile */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 md:hidden"
@@ -61,60 +52,57 @@ const Sidebar = () => {
       {/* SIDEBAR */}
       <aside
         className={`
-        fixed inset-y-0 left-0 z-40 w-64 bg-white dark:bg-slate-900
-        border-r border-slate-200 dark:border-slate-800
-        flex flex-col justify-between
-        transition-transform duration-300 transform
-        ${isOpen ? "translate-x-0" : "-translate-x-full"}
-        md:translate-x-0 md:relative md:flex
-      `}
+          fixed inset-y-0 left-0 z-40 w-64 bg-white dark:bg-slate-900
+          border-r border-slate-200 dark:border-slate-800
+          flex flex-col
+          overflow-y-auto
+          transition-transform duration-300 transform
+          ${isOpen ? "translate-x-0" : "-translate-x-full"}
+          md:translate-x-0 md:relative md:flex
+        `}
       >
-        {/* TOP SECTION */}
-        <div>
-          {/* LOGO */}
-          <div className="p-6 flex items-center space-x-3">
-            <div className="w-10 h-10 brand-gradient rounded-lg flex items-center justify-center text-white shadow-md">
-              <span className="material-symbols-outlined">
-                all_inclusive
-              </span>
-            </div>
-            <div>
-              <h2 className="text-lg font-bold tracking-tight text-navy dark:text-white leading-tight">
-                Terra Nova
-              </h2>
-              <p className="text-[10px] uppercase tracking-wider font-semibold text-teal">
-                Drivers Training
-              </p>
-            </div>
+        {/* LOGO */}
+        <div className="p-6 flex items-center space-x-3">
+          <div className="w-10 h-10 brand-gradient rounded-lg flex items-center justify-center text-white shadow-md">
+            <span className="material-symbols-outlined">
+              all_inclusive
+            </span>
           </div>
-
-          {/* NAVIGATION */}
-          <nav className="px-3 space-y-1">
-            {menuItems.map((item) => (
-              <NavLink
-                key={item.name}
-                to={item.path}
-                onClick={() => setIsOpen(false)}
-                className={({ isActive }) =>
-                  `${
-                    isActive
-                      ? "active-nav text-white"
-                      : "text-slate-500 dark:text-slate-400 hover:bg-teal/5"
-                  } flex items-center space-x-3 px-4 py-3 rounded-lg font-semibold transition-all duration-300`
-                }
-              >
-                <span className="material-symbols-outlined text-[20px]">
-                  {item.icon}
-                </span>
-                <span className="text-[14px]">{item.name}</span>
-              </NavLink>
-            ))}
-          </nav>
+          <div>
+            <h2 className="text-lg font-bold tracking-tight text-navy dark:text-white leading-tight">
+              Terra Nova
+            </h2>
+            <p className="text-[10px] uppercase tracking-wider font-semibold text-teal">
+              Drivers Training
+            </p>
+          </div>
         </div>
 
-        {/* BOTTOM SECTION */}
-        <div className="px-3 pb-4 border-t border-slate-200 dark:border-slate-800">
+        {/* NAVIGATION */}
+        <nav className="px-3 space-y-1 pb-4">
+          {menuItems.map((item) => (
+            <NavLink
+              key={item.name}
+              to={item.path}
+              onClick={() => setIsOpen(false)}
+              className={({ isActive }) =>
+                `${
+                  isActive
+                    ? "active-nav text-white"
+                    : "text-slate-500 dark:text-slate-400 hover:bg-teal/5"
+                } flex items-center space-x-3 px-4 py-3 rounded-lg font-semibold transition-all duration-300`
+              }
+            >
+              <span className="material-symbols-outlined text-[20px]">
+                {item.icon}
+              </span>
+              <span className="text-[14px]">{item.name}</span>
+            </NavLink>
+          ))}
+        </nav>
 
+        {/* BOTTOM SECTION */}
+        <div className="px-3 pb-4 border-t border-slate-200 dark:border-slate-800 mt-auto">
           {/* Appearance Toggle */}
           <div className="flex items-center justify-between px-4 py-2 rounded-lg hover:bg-teal/5 transition-colors">
             <div className="flex items-center space-x-3">
@@ -148,10 +136,10 @@ const Sidebar = () => {
             <span className="text-[14px]">Settings</span>
           </button>
 
-          {/* LOGOUT - CLEAR & VISIBLE */}
+          {/* LOGOUT */}
           <button
             onClick={handleLogout}
-            className="mt-1 w-full flex items-center space-x-3 px-4 py-1 rounded-lg
+            className="mt-1 w-full flex items-center space-x-3 px-4 py-2 rounded-lg
                        bg-red-100 dark:bg-red-900/30
                        text-red-600 dark:text-red-400
                        hover:bg-red-200 dark:hover:bg-red-900/50
