@@ -1,0 +1,44 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* This is the Tailwind 4 way to define your custom colors */
+@theme {
+  --color-navy: #003366;
+  --color-teal: #008B8B;
+  --color-cyan: #00CED1;
+  --color-background-light: #f8fafc;
+  --color-background-dark: #0f172a;
+  --color-card-light: #ffffff;
+  --color-card-dark: #1e293b;
+}
+
+/* Custom CSS from your template */
+:root {
+  --brand-navy: #003366;
+  --brand-teal: #008B8B;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  margin: 0;
+}
+
+.brand-gradient {
+  background: linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-teal) 100%);
+}
+
+.active-nav {
+  background: linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-teal) 100%);
+  color: white !important;
+}
+
+.bg-blob {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  filter: blur(80px);
+  z-index: 0;
+  opacity: 0.15;
+  pointer-events: none;
+}
