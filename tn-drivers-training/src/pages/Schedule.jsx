@@ -115,7 +115,7 @@ const Schedule = () => {
               <div 
                 key={ins.id}
                 onClick={() => { setSelectedInstructor(ins); setIsAssignModalOpen(true); }}
-                className="group bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl hover:translate-y-[-8px] transition-all cursor-pointer relative overflow-hidden"
+                className="group bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl hover:translate-y-2 transition-all cursor-pointer relative overflow-hidden"
               >
                 {/* Status Badges */}
                 <div className="flex justify-between items-start mb-4 relative z-10">
@@ -153,7 +153,7 @@ const Schedule = () => {
                             <span className="text-[7px] uppercase opacity-60">From</span>
                             {ins.startDate}
                          </div>
-                         <div className="h-[2px] w-8 bg-indigo-200"></div>
+                         <div className="h-0.5 w-8 bg-indigo-200"></div>
                          <div className="flex flex-col text-right">
                             <span className="text-[7px] uppercase opacity-60">To</span>
                             {ins.endDate}
@@ -229,7 +229,7 @@ const Modal = ({ instructor, onClose, onSave }) => {
           </div>
           <button 
             onClick={() => onSave({ currentTask: task, startDate: start, endDate: end })}
-            className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:translate-y-[-2px] transition-all"
+            className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:translate-y-0.5 transition-all"
           >
             Confirm Assignment
           </button>

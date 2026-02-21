@@ -33,8 +33,8 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { name: "fleet", icon: "directions_car", path: "/fleet" },
     { name: "Packages", icon: "inventory_2", path: "/packages" },
     { name: "Schedule", icon: "calendar_today", path: "/schedule" },
-    { name: "Attendance", icon: "fact_check", path: "/attendance" },
-    { name: "Tests", icon: "quiz", path: "/tests" },
+    // { name: "Attendance", icon: "fact_check", path: "/attendance" },
+    // { name: "Tests", icon: "quiz", path: "/tests" },
     { name: "Payments", icon: "payments", path: "/payments" },
     { name: "Expenses", icon: "receipt_long", path: "/expenses" },
   ];
