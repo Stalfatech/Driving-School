@@ -30,13 +30,13 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { name: "Applications", icon: "assignment", path: "/applications" },
     { name: "Students", icon: "group", path: "/students" },
     { name: "Instructors", icon: "badge", path: "/instructors" },
-    { name: "fleet", icon: "directions_car", path: "/fleet" },
+    { name: "Fleet", icon: "directions_car", path: "/fleet" },
     { name: "Packages", icon: "inventory_2", path: "/packages" },
     { name: "Schedule", icon: "calendar_today", path: "/schedule" },
-    { name: "Attendance", icon: "fact_check", path: "/attendance" },
-    { name: "Tests", icon: "quiz", path: "/tests" },
+    // { name: "Attendance", icon: "fact_check", path: "/attendance" },
+    // { name: "Tests", icon: "quiz", path: "/tests" },
     { name: "Payments", icon: "payments", path: "/payments" },
-    { name: "Expenses", icon: "receipt_long", path: "/expenses" },
+    { name: "Expenses", icon: "receipt_long", path: "/finances" },
   ];
 
   return (
@@ -128,13 +128,23 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
             </button>
           </div>
 
-          {/* SETTINGS */}
-          <button className="flex items-center space-x-3 w-full px-4 py-2 text-slate-500 dark:text-slate-400 hover:bg-teal/5 rounded-lg transition-colors">
+          {/* SETTINGS - Updated to use NavLink */}
+          <NavLink 
+            to="/settings"
+            onClick={() => setIsOpen(false)}
+            className={({ isActive }) =>
+              `${
+                isActive
+                  ? "active-nav text-white shadow-lg"
+                  : "text-slate-500 dark:text-slate-400 hover:bg-teal/5"
+              } flex items-center space-x-3 w-full px-4 py-3 rounded-lg transition-all duration-300`
+            }
+          >
             <span className="material-symbols-outlined text-[20px]">
               settings
             </span>
             <span className="text-[14px]">Settings</span>
-          </button>
+          </NavLink>
 
           {/* LOGOUT */}
           <button
