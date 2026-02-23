@@ -1,4 +1,8 @@
 import { Routes, Route } from "react-router-dom";
+import AdminLayout from "../layouts/AdminLayout";
+import InstructorLayout from "../layouts/InstructorLayout";
+
+// Admin Pages
 import Dashboard from "../pages/Dashboard";
 import StudentPage from "../pages/StudentPage";
 import Packages from "../pages/Packages";
@@ -9,23 +13,39 @@ import InstructorFleet from "../pages/Instructors";
 import FleetManagement from "../pages/Fleetmanagement";
 import Finances from "../pages/Finances";
 import Settings from "../pages/Settings";
-// import Login from "../pages/Login";
+// ... other admin imports
+
+// Instructor Pages
+import InstructorDashboard from "../pages/instructor/Dashboard";
+// import MyStudents from "../pages/instructor/MyStudents";
+// import NotificationPage from "../pages/instructor/NotificationPage";
+// import InstructorSchedule from "../pages/instructor/MySchedule";
+// import InstructorExpenses from "../pages/instructor/MyExpenses";
 
 const AppRoutes = () => {
   return (
     <Routes>
-      <Route path="/" element={<Dashboard />} />
-      <Route path="/students" element={<StudentPage />} />
-      <Route path="/packages" element={<Packages />} />
-      <Route path="/schedule" element={<Schedule />} />
-      <Route path="/payments" element={<Payments />} />
-      <Route path="/applications" element={<Application />} />
-      <Route path="/instructors" element={<InstructorFleet />} />
-      <Route path="/fleet" element={<FleetManagement />} />
-      <Route path="/finances" element={<Finances />} />
-      <Route path="/settings" element={<Settings />} />
-      {/* 
-      <Route path="/login" element={<Login />} /> */}
+      {/* ADMIN ROUTES */}
+      <Route element={<AdminLayout />}>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/students" element={<StudentPage />} />
+        <Route path="/packages" element={<Packages />} />
+        <Route path="/schedule" element={<Schedule />} />
+        <Route path="/payments" element={<Payments />} />
+        <Route path="/applications" element={<Application />} />
+        <Route path="/instructors" element={<InstructorFleet />} />
+        <Route path="/fleet" element={<FleetManagement />} />
+        <Route path="/finances" element={<Finances />} />
+        <Route path="/settings" element={<Settings />} />
+      </Route>
+
+      {/* INSTRUCTOR ROUTES */}
+      <Route path="/instructor" element={<InstructorLayout />}>
+        <Route index element={<InstructorDashboard />} /> {/* /instructor */}
+      </Route>
+
+      {/* LOGIN ROUTE (Outer - no sidebar) */}
+      {/* <Route path="/login" element={<Login />} /> */}
     </Routes>
   );
 };
