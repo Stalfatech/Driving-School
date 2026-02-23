@@ -5,7 +5,7 @@ import {
   ShieldCheck 
 } from 'lucide-react';
 
-const InstructorDetailModal = ({ instructor, onClose, allInstructors }) => {
+const InstructorDetailModal = ({ instructor, onClose, allInstructors, onUpdate }) => {
   const [transferingStudent, setTransferingStudent] = useState(null);
   const [newInstructorId, setNewInstructorId] = useState('');
   const [currentLocation, setCurrentLocation] = useState(instructor?.location || '');
@@ -28,8 +28,8 @@ const InstructorDetailModal = ({ instructor, onClose, allInstructors }) => {
   const handleLocationUpdate = (e) => {
     const newLoc = e.target.value;
     setCurrentLocation(newLoc);
-    // Note: When location changes, any open transfer dropdown will recalculate 
-    // to show instructors from the NEW location.
+    // NEW: Notify parent about the update
+    onUpdate(instructor.id, { location: newLoc });
     console.log(`Updating ${instructor.name}'s location to: ${newLoc}`);
   };
 
@@ -194,7 +194,7 @@ const InstructorDetailModal = ({ instructor, onClose, allInstructors }) => {
           </button>
         </footer>
 
-        {/* TRANSFER STUDENT OVERLAY - FILTERED BY LOCATION */}
+        {/* TRANSFER STUDENT OVERLAY */}
         {transferingStudent && (
           <div className="absolute inset-0 z-100 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-6">
             <div className="bg-white dark:bg-slate-900 p-8 rounded-4xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-800 animate-in slide-in-from-bottom-4">
