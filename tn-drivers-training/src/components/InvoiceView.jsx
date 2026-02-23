@@ -68,7 +68,7 @@ const InvoiceView = ({ student, pkg, province = "NL", onConfirm, onClose }) => {
             <span>{invoice.taxName} ({(invoice.taxRate * 100)}%)</span>
             <span>${invoice.taxAmount.toFixed(2)}</span>
           </div>
-          <div className="h-[1px] bg-slate-100 dark:bg-slate-800" />
+          <div className="h-px bg-slate-100 dark:bg-slate-800" />
           <div className="flex justify-between items-center">
             <span className="text-lg font-black text-slate-900 dark:text-white italic uppercase">Total Due (CAD)</span>
             <span className="text-3xl font-black text-indigo-600">{invoice.formattedTotal}</span>

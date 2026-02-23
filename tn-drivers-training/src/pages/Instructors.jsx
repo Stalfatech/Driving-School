@@ -12,7 +12,6 @@ const Instructors = () => {
   const [selectedInstructor, setSelectedInstructor] = useState(null);
   const [isRegModalOpen, setIsRegModalOpen] = useState(false);
 
-  // EXPANDED DUMMY DATA for location-based testing
   const [instructors, setInstructors] = useState([
     { 
       id: "INST-9821", 
@@ -83,6 +82,29 @@ const Instructors = () => {
     }
   ]);
 
+  // Function to handle adding new instructor
+  const handleAddInstructor = (newIns) => {
+    const formattedInstructor = {
+      ...newIns,
+      id: `INST-${Math.floor(1000 + Math.random() * 9000)}`,
+      success: 0, 
+      status: "Active",
+      students: []
+    };
+    setInstructors((prev) => [...prev, formattedInstructor]);
+  };
+
+  // NEW: Function to handle updating instructor details (e.g., Location)
+  const handleUpdateInstructor = (id, updatedFields) => {
+    setInstructors(prev => prev.map(ins => 
+      ins.id === id ? { ...ins, ...updatedFields } : ins
+    ));
+    // Also update the selectedInstructor state so the modal stays in sync
+    if (selectedInstructor && selectedInstructor.id === id) {
+      setSelectedInstructor(prev => ({ ...prev, ...updatedFields }));
+    }
+  };
+
   const toggleBlockStatus = (id) => {
     setInstructors(prev => prev.map(ins => 
       ins.id === id ? { ...ins, status: ins.status === "Blocked" ? "Active" : "Blocked" } : ins
@@ -99,11 +121,8 @@ const Instructors = () => {
   return (
     <div className="flex-1 flex flex-col min-h-screen bg-slate-50 dark:bg-background-dark text-slate-900 dark:text-slate-200 transition-colors duration-300">
       
-      {/* 1. RESPONSIVE HEADER */}
       <header className="w-full border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md px-4 md:px-8 py-4 sticky top-0 z-20 transition-all">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 max-w-350 mx-auto">
-          
-          {/* Search & Filter: Stacks on mobile/tablet (sm/md), row on lg */}
           <div className="flex flex-col md:flex-row gap-3 w-full lg:w-auto">
             <div className="relative w-full md:w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 w-4 h-4" />
@@ -127,7 +146,6 @@ const Instructors = () => {
             </select>
           </div>
 
-          {/* Action Buttons: Fills width on mobile */}
           <div className="flex items-center gap-3 w-full lg:w-auto">
             <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-slate-500 dark:text-slate-400 font-bold text-xs uppercase transition-all hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl border border-transparent md:border-slate-200 md:dark:border-slate-800">
               <Download size={16} /> <span className="hidden sm:inline">Export</span>
@@ -150,10 +168,7 @@ const Instructors = () => {
           </div>
         </div>
 
-        {/* 2. ADAPTIVE CONTENT: Card View for Mobile (sm/md), Table for LG+ */}
         <section className="space-y-4">
-          
-          {/* MOBILE VIEW: Cards (Visible only on screens below LG) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:hidden">
             {filteredInstructors.map((ins) => (
               <div key={ins.id} className="bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm space-y-4">
@@ -187,7 +202,6 @@ const Instructors = () => {
             ))}
           </div>
 
-          {/* DESKTOP VIEW: Table (Hidden on screens below LG) */}
           <div className="hidden lg:block bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left">
@@ -215,7 +229,7 @@ const Instructors = () => {
                       </td>
                       <td className="px-6 py-5">
                         <span className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest ${
-                          ins.status === "Active" ? "bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-rose-100 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                          ins.status === "Active" ? "bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400" : "bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400"
                         }`}>
                           {ins.status}
                         </span>
@@ -242,14 +256,18 @@ const Instructors = () => {
         </section>
       </main>
 
-      {/* MODALS */}
-      <InstructorRegistrationModal isOpen={isRegModalOpen} onClose={() => setIsRegModalOpen(false)} />
+      <InstructorRegistrationModal 
+        isOpen={isRegModalOpen} 
+        onClose={() => setIsRegModalOpen(false)} 
+        onAdd={handleAddInstructor}
+      />
       
       {selectedInstructor && (
         <InstructorDetailModal 
           instructor={selectedInstructor} 
           onClose={() => setSelectedInstructor(null)} 
           allInstructors={instructors.filter(i => i.id !== selectedInstructor.id)}
+          onUpdate={handleUpdateInstructor} // PASSING UPDATE PROP
         />
       )}
     </div>
