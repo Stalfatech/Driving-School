@@ -24,7 +24,7 @@ const AppRoutes = () => {
       <Route path="/fleet" element={<FleetManagement />} />
       <Route path="/finances" element={<Finances />} />
       <Route path="/settings" element={<Settings />} />
-      {/* <Route path="/applications" element={<Applications />} />
+      {/* 
       <Route path="/login" element={<Login />} /> */}
     </Routes>
   );
