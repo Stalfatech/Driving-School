@@ -6,7 +6,7 @@ import Navbar from "../components/Navbar";
 const AdminLayout = () => {
   const [isOpen, setIsOpen] = useState(false);
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-gray-950">
+    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-gray-950 text-slate-900 dark:text-slate-100">
       <Sidebar isOpen={isOpen} setIsOpen={setIsOpen} />
       <div className="flex-1 flex flex-col">
         <Navbar isOpen={isOpen} setIsOpen={setIsOpen} />
