@@ -1,4 +1,6 @@
 
+
+/**
  * Dynamic Canadian Tax Calculator
  * @param {number} price - Base package price
  * @param {object} region - The region object from your Settings state
