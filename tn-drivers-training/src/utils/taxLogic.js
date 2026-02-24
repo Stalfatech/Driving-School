@@ -1,33 +1,19 @@
-/**
- * Canadian Tax Rates (as of 2024/2025)
- * Rates are expressed as decimals (e.g., 0.15 for 15%)
- */
-export const PROVINCIAL_TAX_CONFIG = {
-  "NL": { name: "HST", rate: 0.15 }, // Newfoundland and Labrador
-  "NS": { name: "HST", rate: 0.15 }, // Nova Scotia
-  "NB": { name: "HST", rate: 0.15 }, // New Brunswick
-  "PE": { name: "HST", rate: 0.15 }, // Prince Edward Island
-  "ON": { name: "HST", rate: 0.13 }, // Ontario
-  "AB": { name: "GST", rate: 0.05 }, // Alberta
-  "BC": { name: "GST+PST", rate: 0.12 }, // British Columbia (Combined)
-  "QC": { name: "GST+QST", rate: 0.14975 }, // Quebec
-};
 
-/**
- * Calculates the tax and total for a package
- * @param {number} price - The base price of the package
- * @param {string} province - The 2-letter province code
+ * Dynamic Canadian Tax Calculator
+ * @param {number} price - Base package price
+ * @param {object} region - The region object from your Settings state
  * @returns {object} - Itemized breakdown
  */
-export const calculateCanadianInvoice = (price, province = "NL") => {
-  const config = PROVINCIAL_TAX_CONFIG[province] || PROVINCIAL_TAX_CONFIG["NL"];
-  const taxAmount = price * config.rate;
+export const calculateCanadianInvoice = (price, region) => {
+  if (!region) return { total: price, formattedTotal: `$${price.toFixed(2)}` };
+
+  const taxAmount = price * region.rate;
   const total = price + taxAmount;
 
   return {
     subtotal: price,
-    taxName: config.name,
-    taxRate: config.rate,
+    taxName: region.taxName || "Tax",
+    taxRate: region.rate,
     taxAmount: Number(taxAmount.toFixed(2)),
     total: Number(total.toFixed(2)),
     formattedTotal: new Intl.NumberFormat('en-CA', {

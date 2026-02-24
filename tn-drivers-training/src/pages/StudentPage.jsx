@@ -10,7 +10,8 @@ const generateStudents = () => {
   return Array.from({ length: 120 }, (_, i) => {
     const id = i + 1;
     const hoursLogged = Math.floor(Math.random() * 13);
-    const monthsCompleted = Math.floor(Math.random() * 12);
+    // const monthsCompleted = Math.floor(Math.random() * 12);
+    const daysRemaining = Math.floor(Math.random() * 10);
     const status = paymentStatuses[i % paymentStatuses.length];
     
     return {
@@ -23,10 +24,33 @@ const generateStudents = () => {
       totalRequiredHours: 12,
       paymentStatus: status,
       balanceCAD: status === "Paid" ? 0 : parseFloat((Math.random() * 800 + 100).toFixed(2)),
-      gdlEligibilityMonths: 12 - monthsCompleted,
+      gdlEligibilityMonths:daysRemaining,
       progress: Math.floor((hoursLogged / 12) * 100),
       status: "Active",
       email: `student${id}@drive-academy.ca`,
+      //added notes section .
+     evaluations: [
+    { 
+      category: "Lane Discipline", 
+      score: 4, 
+      note: "Maintains position well, but tends to drift slightly when checking mirrors." 
+    },
+    { 
+      category: "Parallel Parking", 
+      score: 3, 
+      note: "Good understanding of the steps, needs to work on the final distance from the curb." 
+    },
+    { 
+      category: "Mirror Checks", 
+      score: 5, 
+      note: "Perfect. Consistent checking before every maneuver." 
+    },
+    { 
+      category: "Highway Merging", 
+      score: 2, 
+      note: "Reluctant to reach highway speeds before merging. Needs more confidence." 
+    }
+  ],
     };
   });
 };
@@ -127,20 +151,26 @@ export default function StudentPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                  
                   {students.map((s) => (
-                    <tr key={s.id} onClick={() => setViewStudent(s)} className="group hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 cursor-pointer">
-                      <td className="px-8 py-5 flex items-center gap-3">
-                          <div className="h-10 w-10 shrink-0 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold">{s.name.charAt(0)}</div>
-                          <div className="font-bold text-gray-800 dark:text-white truncate">{s.name}</div>
-                      </td>
-                      <td className="px-8 py-5 text-gray-500 text-xs font-semibold">{s.location}</td>
-                      <td className="px-8 py-5 font-bold text-indigo-600">${s.balanceCAD}</td>
-                      <td className="px-8 py-5">
-                         <span className={`px-3 py-1 rounded-lg text-[9px] font-bold uppercase ${s.paymentStatus === 'Paid' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>{s.paymentStatus}</span>
-                      </td>
-                      <td className="px-8 py-5 text-right"><button className="text-indigo-600 font-bold text-xs uppercase">View</button></td>
-                    </tr>
-                  ))}
+                            <tr key={s.id} onClick={() => setViewStudent(s)} className="group hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 cursor-pointer transition-colors">
+                              <td className="px-8 py-5 flex items-center gap-3">
+                                <div className="h-10 w-10 shrink-0 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold">{s.name.charAt(0)}</div>
+                                <div className="font-bold text-gray-800 dark:text-white truncate">{s.name}</div>
+                              </td>
+                              <td className="px-8 py-5 text-gray-500 text-xs font-semibold">{s.location}</td>
+                              <td className="px-8 py-5 font-bold text-indigo-600">${s.balanceCAD}</td>
+                              <td className="px-8 py-5">
+                                <span className={`px-3 py-1 rounded-lg text-[9px] font-bold uppercase ${s.paymentStatus === 'Paid' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>{s.paymentStatus}</span>
+                              </td>
+                              <td className="px-8 py-5 text-right">
+                                {/* The invisible class hides it by default, group-hover:visible shows it when the TR is hovered */}
+                                <button className="invisible group-hover:visible text-indigo-600 hover:text-green-500 font-bold text-xs uppercase transition-all">
+                                  View
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
                 </tbody>
               </table>
             </div>
