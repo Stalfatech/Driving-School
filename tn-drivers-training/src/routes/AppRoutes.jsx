@@ -17,6 +17,10 @@ import Settings from "../pages/Settings";
 
 // Instructor Pages
 import InstructorDashboard from "../pages/instructor/Dashboard";
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 import MyStudents from "../pages/instructor/MyStudents";
 import NotificationPage from "../pages/instructor/NotificationPage";
 import InstructorSchedule from "../pages/instructor/MySchedule";
@@ -42,10 +46,17 @@ const AppRoutes = () => {
       {/* INSTRUCTOR ROUTES */}
       <Route path="/instructor" element={<InstructorLayout />}>
         <Route index element={<InstructorDashboard />} /> {/* /instructor */}
+<<<<<<< Updated upstream
         <Route path="/instructor/students" element={<MyStudents />} />
         <Route path="/instructor/notifications" element={<NotificationPage />} />
         <Route path="/instructor/schedule" element={<InstructorSchedule />} />
         <Route path="/instructor/expenses" element={<InstructorExpenses />} />
+=======
+        <Route path="students" element={<MyStudents />} />
+        <Route path="schedule" element={<InstructorSchedule/>}/>
+        <Route path="notifications" element={<NotificationPage />} />
+        <Route path="expenses" element={<InstructorExpenses />} />
+>>>>>>> Stashed changes
       </Route>
 
       {/* LOGIN ROUTE (Outer - no sidebar) */}
