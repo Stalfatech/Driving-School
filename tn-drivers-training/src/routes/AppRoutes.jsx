@@ -17,10 +17,10 @@ import Settings from "../pages/Settings";
 
 // Instructor Pages
 import InstructorDashboard from "../pages/instructor/Dashboard";
-// import MyStudents from "../pages/instructor/MyStudents";
-// import NotificationPage from "../pages/instructor/NotificationPage";
-// import InstructorSchedule from "../pages/instructor/MySchedule";
-// import InstructorExpenses from "../pages/instructor/MyExpenses";
+import MyStudents from "../pages/instructor/MyStudents";
+import NotificationPage from "../pages/instructor/NotificationPage";
+import InstructorSchedule from "../pages/instructor/MySchedule";
+import InstructorExpenses from "../pages/instructor/MyExpenses";
 
 const AppRoutes = () => {
   return (
@@ -42,6 +42,10 @@ const AppRoutes = () => {
       {/* INSTRUCTOR ROUTES */}
       <Route path="/instructor" element={<InstructorLayout />}>
         <Route index element={<InstructorDashboard />} /> {/* /instructor */}
+        <Route path="/instructor/students" element={<MyStudents />} />
+        <Route path="/instructor/notifications" element={<NotificationPage />} />
+        <Route path="/instructor/schedule" element={<InstructorSchedule />} />
+        <Route path="/instructor/expenses" element={<InstructorExpenses />} />
       </Route>
 
       {/* LOGIN ROUTE (Outer - no sidebar) */}
