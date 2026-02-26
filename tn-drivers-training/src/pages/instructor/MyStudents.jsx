@@ -15,7 +15,7 @@ const MyStudents = () => {
   const [students] = useState([
     { id: "STU-001", name: "Alex Rivera", location: "Burin", progress: 65, status: "Active", email: "alex@example.com", package: "Full GDL", payment: "Balance Due" },
     { id: "STU-003", name: "Yuki Tanaka", location: "Burin", progress: 100, status: "Completed", email: "yuki@example.com", package: "Pro Highway", payment: "Paid" },
-    { id: "STU-004", name: "Muhammed Salman", location: "Marystown", progress: 40, status: "Active", email: "salman@tech.com", package: "Basic 10hr", payment: "Balance Due" },
+    { id: "STU-004", name: "Muhammed Salman", location: "burin", progress: 40, status: "Active", email: "salman@tech.com", package: "Basic 10hr", payment: "Balance Due" },
   ]);
 
   const filteredStudents = students.filter(s => {
