@@ -3,7 +3,7 @@ import {
   MapPin, Calendar as CalendarIcon, Search, X, 
   Clock, AlertCircle, CheckCircle2, Edit3, Trash2, 
   Users, ChevronRight, ArrowLeft, UserPlus, 
-  Filter, History, Settings2
+  Filter, History, Settings2,XCircle, CheckCircle
 } from "lucide-react";
 
 import SearchBar from "../components/SearchBar";
@@ -52,6 +52,14 @@ const Schedule = () => {
   const [formData, setFormData] = useState({ date: "", startTime: "09:00", endTime: "10:00" });
 
   // --- 3. LOGIC ---
+ //approval dummy 
+ const toggleApproval = (id) => {
+    setInstructors(prev => prev.map(ins => 
+      ins.id === id ? { ...ins, isApproved: !ins.isApproved } : ins
+    ));
+  };
+
+
   const getTaskStatus = (endDate) => {
     if (!endDate) return { label: "Idle", color: "text-slate-400 bg-slate-100 dark:bg-slate-800", icon: <Clock size={10}/> };
     if (new Date() > new Date(endDate)) return { label: "Expired", color: "text-rose-600 bg-rose-100 dark:bg-rose-900/20", icon: <AlertCircle size={10}/> };
@@ -125,6 +133,18 @@ const Schedule = () => {
                   <div key={ins.id} className="group bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xl transition-all hover:border-indigo-500 relative">
                     <div className="flex justify-between items-start mb-6">
                       <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-tighter ${status.color}`}>{status.icon} {status.label}</div>
+                      {/* //togglr appove buutton */}
+                      <button 
+                          onClick={() => toggleApproval(ins.id)} 
+                          className={`px-3 py-2 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-md flex items-center gap-2 ${
+                            ins.isApproved 
+                            ? "bg-emerald-500 text-white hover:bg-emerald-600" 
+                            : "bg-rose-500 text-white hover:bg-rose-600"
+                          }`}
+                        >
+                          {ins.isApproved ? <CheckCircle size={14}/> : <XCircle size={14}/>}
+                          {ins.isApproved ? "Approved" : "Pending"}
+                        </button>
                       <button onClick={() => { setSelectedInstructor(ins); setViewMode("manage"); }} className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 active:scale-95 shadow-lg flex items-center gap-2">
                         <Settings2 size={14}/> Manage
                       </button>
