@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   X, Car, Hash, Palette, MapPin, 
   Gauge, UserCircle, Edit3, Save, 
-  ChevronDown, ShieldCheck, Trash2, CalendarDays, FileText
+  ChevronDown, ShieldCheck, Trash2, CalendarDays, FileText, Bookmark
 } from 'lucide-react';
 
 const VehicleDetailModal = ({ vehicle, onClose, onUpdate }) => {
@@ -58,17 +58,32 @@ const VehicleDetailModal = ({ vehicle, onClose, onUpdate }) => {
             <DataField icon={<Car size={16}/>} label="Vehicle Name" value={formData.name} isEditing={isEditing} onChange={(val) => setFormData({...formData, name: val})} />
             <DataField icon={<Hash size={16}/>} label="Plate Number" value={formData.plate} isEditing={isEditing} className="uppercase" onChange={(val) => setFormData({...formData, plate: val})} />
             <DataField icon={<Palette size={16}/>} label="Color" value={formData.color} isEditing={isEditing} onChange={(val) => setFormData({...formData, color: val})} />
-            <DataField icon={<Gauge size={16}/>} label="Mileage (KM)" value={formData.km} isEditing={isEditing} type="number" onChange={(val) => setFormData({...formData, km: val})} />
-            
-            {/* COMPLIANCE DATES */}
-            <DataField icon={<CalendarDays size={16}/>} label="Insurance Expiry" value={formData.insuranceExpiry} isEditing={isEditing} type="date" onChange={(val) => setFormData({...formData, insuranceExpiry: val})} />
-            <DataField icon={<CalendarDays size={16}/>} label="RC Expiry" value={formData.rcExpiry} isEditing={isEditing} type="date" onChange={(val) => setFormData({...formData, rcExpiry: val})} />
+            <DataField icon={<Gauge size={16}/>} label="odometer (KM)" value={formData.km} isEditing={isEditing} type="number" onChange={(val) => setFormData({...formData, km: val})} />
           </div>
 
-          <div className="h-px bg-slate-100 dark:bg-slate-800 w-full" />
+          {/* COMPLIANCE SECTION: GROUPED NUMBERS AND DATES */}
+          <div className="bg-slate-50 dark:bg-slate-800/40 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 space-y-8">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+               <ShieldCheck size={14} className="text-[#008B8B]"/> Compliance Documents
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
+              {/* Insurance Info */}
+              <div className="space-y-6">
+                <DataField icon={<ShieldCheck size={16}/>} label="Insurance No." value={formData.insuranceNo} isEditing={isEditing} onChange={(val) => setFormData({...formData, insuranceNo: val})} />
+                <DataField icon={<CalendarDays size={16}/>} label="Insurance Expiry" value={formData.insuranceExpiry} isEditing={isEditing} type="date" onChange={(val) => setFormData({...formData, insuranceExpiry: val})} />
+              </div>
+
+              {/* RC Info */}
+              <div className="space-y-6">
+                <DataField icon={<Bookmark size={16}/>} label="RC Number" value={formData.rcNo} isEditing={isEditing} onChange={(val) => setFormData({...formData, rcNo: val})} />
+                <DataField icon={<CalendarDays size={16}/>} label="RC Expiry" value={formData.rcExpiry} isEditing={isEditing} type="date" onChange={(val) => setFormData({...formData, rcExpiry: val})} />
+              </div>
+            </div>
+          </div>
 
           {/* Location & Instructor Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 dark:bg-slate-800/40 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-[#008B8B]/5 p-6 rounded-[2rem] border border-[#008B8B]/10">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                 <MapPin size={14} className="text-[#008B8B]"/> Branch Location
@@ -109,7 +124,7 @@ const VehicleDetailModal = ({ vehicle, onClose, onUpdate }) => {
             </div>
           </div>
 
-          {/* RESTORED DOCUMENT VIEW */}
+          {/* DOCUMENT VIEW */}
           <div className="bg-slate-900 rounded-[2.5rem] p-6 text-white flex items-center justify-between relative group overflow-hidden border-2 border-[#008B8B]/20 shadow-xl">
             <div className="relative z-10 flex items-center gap-6">
               <div className="size-16 rounded-[1.25rem] bg-white/10 flex items-center justify-center text-[#008B8B] border border-white/10">
@@ -127,7 +142,7 @@ const VehicleDetailModal = ({ vehicle, onClose, onUpdate }) => {
             <ShieldCheck size={120} className="absolute -right-4 -bottom-4 text-white opacity-5 rotate-12 group-hover:rotate-0 transition-all duration-700" />
           </div>
 
-          {/* 3. PRIMARY ACTION FOOTER (Visible Save Button) */}
+          {/* PRIMARY ACTION FOOTER */}
           <div className="pt-4">
             {isEditing ? (
               <div className="flex flex-col sm:flex-row gap-3">
