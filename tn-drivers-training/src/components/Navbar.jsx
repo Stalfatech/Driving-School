@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation , Link} from "react-router-dom";
 import ProfileModal from "./ProfileModal";
 import { Bell, Home } from "lucide-react";
 
@@ -54,7 +54,14 @@ const Navbar = ({ isOpen, setIsOpen }) => {
             <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold capitalize tracking-tight text-navy dark:text-white truncate max-w-37.5 sm:max-w-50 md:max-w-75">
               {pageTitle}
             </h1>
+            
           </div>
+          <Link 
+    to="/instructor" 
+    className="px-3 py-1 text-sm font-medium text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/30 rounded-md transition-colors duration-200 border border-teal-200 dark:border-teal-800"
+  >
+    Instructors
+  </Link>
 
           {/* Current Date & Time */}
           <div className="hidden sm:block text-xs sm:text-sm md:text-base text-gray-500 dark:text-gray-300 ml-4">
