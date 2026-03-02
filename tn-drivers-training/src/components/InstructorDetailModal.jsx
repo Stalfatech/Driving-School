@@ -18,7 +18,6 @@ const InstructorDetailModal = ({ instructor, onClose, allInstructors, onUpdate }
   const [currentPage, setCurrentPage] = useState(1);
   const studentsPerPage = 3;
 
-  // Ref for the hidden file input
   const fileInputRef = useRef(null);
 
   const availableClasses = [
@@ -30,6 +29,7 @@ const InstructorDetailModal = ({ instructor, onClose, allInstructors, onUpdate }
     "Class 6 (Motorcycle)"
   ];
 
+  // Initialize local state from prop
   useEffect(() => {
     if (instructor) {
       setEditData({
@@ -55,6 +55,19 @@ const InstructorDetailModal = ({ instructor, onClose, allInstructors, onUpdate }
     setEditData(prev => ({ ...prev, [name]: value }));
   };
 
+  // --- SAVE LOGIC ---
+  const handleSave = () => {
+    // Merge names back into the 'name' property for the main list
+    const updatedRecord = {
+      ...editData,
+      name: `${editData.firstName} ${editData.lastName}`.trim()
+    };
+    
+    // Call parent update function
+    onUpdate(instructor.id, updatedRecord);
+    setIsEditing(false);
+  };
+
   const toggleQualification = (cls) => {
     if (!isEditing) return;
     const currentList = editData.qualifyToTeach ? editData.qualifyToTeach.split(", ") : [];
@@ -65,7 +78,6 @@ const InstructorDetailModal = ({ instructor, onClose, allInstructors, onUpdate }
     setEditData({ ...editData, qualifyToTeach: newList.join(", ") });
   };
 
-  // Logic for Transfer Confirmation Alert
   const handleConfirmTransfer = () => {
     const targetInstructor = allInstructors.find(s => s.id === newInstructorId);
     alert(`Success: ${transferingStudent.name} has been transferred to ${targetInstructor?.name || 'the new instructor'}.`);
@@ -73,7 +85,6 @@ const InstructorDetailModal = ({ instructor, onClose, allInstructors, onUpdate }
     setNewInstructorId('');
   };
 
-  // Logic to trigger hidden file input
   const triggerUpload = () => {
     fileInputRef.current?.click();
   };
@@ -90,7 +101,6 @@ const InstructorDetailModal = ({ instructor, onClose, allInstructors, onUpdate }
 
   return (
     <div className="fixed inset-0 z-100 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 font-['Lexend']">
-      {/* Hidden File Input */}
       <input 
         type="file" 
         ref={fileInputRef} 
@@ -111,7 +121,7 @@ const InstructorDetailModal = ({ instructor, onClose, allInstructors, onUpdate }
           </div>
           <div className="flex items-center gap-3">
              <button 
-                onClick={() => isEditing ? (onUpdate(instructor.id, editData), setIsEditing(false)) : setIsEditing(true)}
+                onClick={() => isEditing ? handleSave() : setIsEditing(true)}
                 className={`flex items-center gap-2 px-4 sm:px-6 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-lg active:scale-95 ${isEditing ? 'bg-emerald-600 text-white shadow-emerald-500/20' : 'bg-[#2563eb] text-white shadow-blue-500/20'}`}
               >
                 {isEditing ? <><Save size={16}/> Save Changes</> : <><Edit3 size={16}/> Edit Profile</>}
@@ -203,8 +213,6 @@ const InstructorDetailModal = ({ instructor, onClose, allInstructors, onUpdate }
 
           {/* TWO COLUMN: DOCUMENTS & ROSTER */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            
-            {/* DOCUMENT UPLOAD SECTION - VIEW REPLACED BY UPLOAD */}
             <section className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col">
               <h3 className="text-sm font-bold text-[#2563eb] uppercase tracking-widest mb-6 flex items-center gap-2 justify-center sm:justify-start">
                 <FileText size={18} /> Compliance Documents
@@ -224,7 +232,6 @@ const InstructorDetailModal = ({ instructor, onClose, allInstructors, onUpdate }
                         <p className="text-[10px] text-slate-400 font-medium uppercase tracking-tight">{doc.date}</p>
                       </div>
                     </div>
-                    {/* REPLACED "VIEW" WITH UPLOAD TRIGGER */}
                     <button 
                       onClick={triggerUpload}
                       className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 text-[#2563eb] rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-100 transition-colors"
@@ -243,7 +250,6 @@ const InstructorDetailModal = ({ instructor, onClose, allInstructors, onUpdate }
               </div>
             </section>
 
-            {/* STUDENT ROSTER WITH SEARCH & PAGINATION */}
             <section className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <h3 className="text-sm font-bold text-[#2563eb] uppercase tracking-widest flex items-center gap-2 justify-center sm:justify-start">
@@ -277,7 +283,6 @@ const InstructorDetailModal = ({ instructor, onClose, allInstructors, onUpdate }
                 )}
               </div>
               
-              {/* PAGINATION LOGIC */}
               <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-50 dark:border-slate-800">
                 <span className="text-[10px] font-black text-slate-400 uppercase">Page {currentPage} of {totalPages || 1}</span>
                 <div className="flex gap-2">
@@ -302,7 +307,7 @@ const InstructorDetailModal = ({ instructor, onClose, allInstructors, onUpdate }
             <div className="bg-white dark:bg-slate-900 w-full max-w-md p-8 rounded-[2.5rem] shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-800">
               <div className="text-center mb-6">
                 <div className="size-14 bg-blue-50 dark:bg-blue-900/30 text-[#2563eb] rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <MoveHorizontal size={28}/>
+                  <moveHorizontal size={28}/>
                 </div>
                 <h4 className="text-xl font-bold text-slate-900 dark:text-white">Transfer Student</h4>
                 <p className="text-xs text-slate-500 mt-1 italic">Moving {transferingStudent.name} to another instructor</p>
@@ -346,7 +351,7 @@ const InstructorDetailModal = ({ instructor, onClose, allInstructors, onUpdate }
 /* --- REUSABLE FIELD COMPONENTS --- */
 
 const DataField = ({ label, name, value, onChange, isEditing, type = "text" }) => (
-  <div className="flex flex-col gap-1.5 items-center sm:items-start text-center sm:text-left">
+  <div className="flex flex-col gap-1.5 items-center sm:items-start text-center sm:text-left w-full">
     <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.15em] ml-1">{label}</label>
     <div className={`w-full px-4 py-3.5 rounded-2xl border transition-all flex items-center bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-700 ${
       isEditing ? 'border-blue-500 ring-2 ring-blue-500/10' : ''
@@ -367,7 +372,7 @@ const DataField = ({ label, name, value, onChange, isEditing, type = "text" }) =
 );
 
 const SelectField = ({ label, name, value, onChange, isEditing, options }) => (
-  <div className="flex flex-col gap-1.5 items-center sm:items-start text-center sm:text-left">
+  <div className="flex flex-col gap-1.5 items-center sm:items-start text-center sm:text-left w-full">
     <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.15em] ml-1">{label}</label>
     <div className={`w-full px-4 py-3.5 rounded-2xl border transition-all flex items-center justify-between bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-700 ${
       isEditing ? 'border-blue-500 ring-2 ring-blue-500/10' : ''
