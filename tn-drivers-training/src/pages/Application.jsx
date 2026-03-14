@@ -1,505 +1,312 @@
-// import React, { useState } from 'react';
-// import ApplicationModal from '../components/ApplicationReviewModal';
-// import { 
-//   Search, MapPin, Filter, MoreHorizontal, ChevronRight, 
-//   Trash2, UserPlus, Mail, Phone, Calendar, AlertCircle 
-// } from 'lucide-react';
-
-// const initialApplications = [
-//   { 
-//     id: "APP-001", 
-//     date: "2026-02-19 14:20", 
-//     name: "James Harrison", 
-//     email: "james.h@example.com",
-//     mobile: "(555) 123-4567",
-//     location: "Burin",
-//     cityPostal: "A0E 1E0",
-//     priority: "High",
-//     status: "New",
-//     experience: "Beginner",
-//     dob: "2005-09-12",
-//     permitNumber: "BC-6623-HARR"
-//   },
-//   { 
-//     id: "APP-002", 
-//     date: "2026-02-18 09:15", 
-//     name: "Sarah Williams", 
-//     email: "s.williams@example.com",
-//     mobile: "(555) 987-6543",
-//     location: "St. John’s / Mount Pearl",
-//     cityPostal: "A1A 1A1",
-//     priority: "Normal",
-//     status: "Review",
-//     experience: "Intermediate",
-//     dob: "2004-08-22",
-//     permitNumber: "BC-5521-WILL"
-//   }
-// ];
-
-// const Applications = () => {
-//   const [applications, setApplications] = useState(initialApplications);
-//   const [searchTerm, setSearchTerm] = useState('');
-//   const [statusFilter, setStatusFilter] = useState('All');
-//   const [priorityFilter, setPriorityFilter] = useState('All');
-//   const [locationFilter, setLocationFilter] = useState('All'); // Location state
-//   const [selectedApp, setSelectedApp] = useState(null);
-
-//   // Updated filtering logic to include branch locations
-//   const filteredApps = applications.filter(app => {
-//     const term = searchTerm.toLowerCase();
-//     const matchesSearch = app.name.toLowerCase().includes(term) || 
-//                           app.cityPostal.toLowerCase().includes(term) ||
-//                           app.location.toLowerCase().includes(term);
-//     const matchesStatus = statusFilter === 'All' || app.status === statusFilter;
-//     const matchesPriority = priorityFilter === 'All' || app.priority === priorityFilter;
-//     const matchesLocation = locationFilter === 'All' || app.location === locationFilter;
-    
-//     return matchesSearch && matchesStatus && matchesPriority && matchesLocation;
-//   });
-
-//   return (
-//     <div className="flex-1 flex flex-col min-h-screen bg-slate-50 dark:bg-[#0f172a] transition-colors overflow-hidden">
-      
-//       {/* 1. ADAPTIVE HEADER */}
-//       <header className="px-4 md:px-8 pt-6 md:pt-8 pb-4">
-//         <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white">Lead Management</h1>
-//         <p className="text-xs md:text-sm text-slate-500 mb-6">Pipeline: Inquiry → Enrollment</p>
-
-//         {/* Filter Bar - Wraps on mobile */}
-//         <div className="flex flex-col xl:flex-row items-stretch xl:items-center gap-3 mb-6">
-//           <div className="grid grid-cols-2 md:flex gap-2 flex-1">
-//             {/* Location Filter - Added your specific branches */}
-//             <select 
-//               value={locationFilter} 
-//               onChange={(e) => setLocationFilter(e.target.value)}
-//               className="px-3 py-2 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-slate-700 rounded-xl text-xs md:text-sm dark:text-white outline-none focus:ring-2 focus:ring-[#008B8B]/50"
-//             >
-//               <option value="All">All Branches</option>
-//               <option value="Burin">Burin</option>
-//               <option value="Grand Falls">Grand Falls</option>
-//               <option value="Marystown">Marystown</option>
-//               <option value="St. John’s / Mount Pearl">St. John’s / Mount Pearl</option>
-//             </select>
-
-//             <select 
-//               value={statusFilter} 
-//               onChange={(e) => setStatusFilter(e.target.value)}
-//               className="px-3 py-2 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-slate-700 rounded-xl text-xs md:text-sm dark:text-white outline-none focus:ring-2 focus:ring-[#008B8B]/50"
-//             >
-//               <option value="All">All Status</option>
-//               <option value="New">New</option>
-//               <option value="Review">Review</option>
-//               <option value="Rejected">Rejected</option>
-//             </select>
-
-//             <select 
-//               value={priorityFilter} 
-//               onChange={(e) => setPriorityFilter(e.target.value)}
-//               className="hidden md:block px-3 py-2 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-slate-700 rounded-xl text-xs md:text-sm dark:text-white outline-none focus:ring-2 focus:ring-[#008B8B]/50"
-//             >
-//               <option value="All">All Priority</option>
-//               <option value="High">High Priority</option>
-//               <option value="Normal">Normal</option>
-//             </select>
-//           </div>
-
-//           <div className="relative w-full md:max-w-xs">
-//             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-//             <input
-//               type="text"
-//               placeholder="Search Name or Postal Code..."
-//               value={searchTerm}
-//               onChange={(e) => setSearchTerm(e.target.value)}
-//               className="w-full pl-10 pr-4 py-2 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-slate-700 rounded-xl text-xs md:text-sm dark:text-white outline-none focus:ring-2 focus:ring-[#008B8B]/50"
-//             />
-//           </div>
-//         </div>
-//       </header>
-
-//       {/* 2. RESPONSIVE TABLE CONTAINER */}
-//       <div className="flex-1 px-4 md:px-8 pb-8 overflow-y-auto custom-scrollbar">
-        
-//         {/* MOBILE VIEW: Card List */}
-//         <div className="grid grid-cols-1 gap-4 md:hidden">
-//           {filteredApps.map((app) => (
-//             <div key={app.id} className="bg-white dark:bg-[#111827] p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden transition-all">
-//               {app.priority === 'High' && <div className="absolute top-0 left-0 w-1.5 h-full bg-rose-500" />}
-              
-//               <div className="flex justify-between items-start mb-3">
-//                 <div>
-//                   <h3 className="text-sm font-bold dark:text-white">{app.name}</h3>
-//                   <p className="text-[10px] text-slate-400 font-mono uppercase tracking-tighter">ID: {app.id} • {app.date}</p>
-//                 </div>
-//                 <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest ${
-//                   app.priority === 'High' ? 'bg-rose-500 text-white shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-//                 }`}>
-//                   {app.priority}
-//                 </span>
-//               </div>
-
-//               <div className="space-y-2 mb-4">
-//                 <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
-//                   <Mail size={14} className="text-[#008B8B]" /> {app.email}
-//                 </div>
-//                 <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
-//                   <MapPin size={14} className="text-[#008B8B]" /> {app.location}
-//                 </div>
-//               </div>
-
-//               <div className="grid grid-cols-2 gap-2">
-//                 <button 
-//                   onClick={() => setSelectedApp(app)}
-//                   className="py-2.5 bg-[#008B8B] hover:bg-[#007373] text-white rounded-xl text-xs font-bold transition-all active:scale-95"
-//                 >
-//                   Review
-//                 </button>
-//                 <button className="py-2.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700 transition-all active:scale-95">
-//                   Assign
-//                 </button>
-//               </div>
-//             </div>
-//           ))}
-//         </div>
-
-//         {/* DESKTOP VIEW: Table */}
-//         <div className="hidden md:block bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm transition-all">
-//           <table className="w-full text-left">
-//             <thead className="bg-slate-50 dark:bg-[#1f2937]/50 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">
-//               <tr className="text-[11px] font-bold uppercase tracking-widest">
-//                 <th className="p-5">ID & Date</th>
-//                 <th className="p-5">Student Details</th>
-//                 <th className="p-5">Location</th>
-//                 <th className="p-5">Priority</th>
-//                 <th className="p-5 text-right">Actions</th>
-//               </tr>
-//             </thead>
-//             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
-//               {filteredApps.map((app) => (
-//                 <tr key={app.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors group">
-//                   <td className="p-5">
-//                     <div className="font-bold text-slate-900 dark:text-white leading-none mb-1">{app.id}</div>
-//                     <div className="text-[10px] text-slate-400 font-mono tracking-tight">{app.date}</div>
-//                   </td>
-//                   <td className="p-5">
-//                     <div className="font-semibold text-slate-900 dark:text-white leading-tight">{app.name}</div>
-//                     <div className="text-[11px] text-slate-500 mt-0.5">{app.email}</div>
-//                   </td>
-//                   <td className="p-5">
-//                     <div className="flex items-center gap-1.5 text-sm dark:text-slate-300">
-//                       <MapPin size={14} className="text-slate-400 shrink-0" />
-//                       {app.location}
-//                     </div>
-//                     <div className="text-[10px] text-slate-400 pl-5">{app.cityPostal}</div>
-//                   </td>
-//                   <td className="p-5">
-//                     <span className={`inline-flex px-2.5 py-0.5 rounded-lg text-[10px] font-bold ${
-//                       app.priority === 'High' 
-//                         ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20' 
-//                         : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-//                     }`}>
-//                       {app.priority.toUpperCase()}
-//                     </span>
-//                   </td>
-//                   <td className="p-5 text-right">
-//                     <div className="flex items-center justify-end gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-all duration-200">
-//                       <button onClick={() => setSelectedApp(app)} className="p-2 hover:bg-[#008B8B]/10 text-[#008B8B] rounded-lg transition-colors" title="Review Profile"><ChevronRight size={18} /></button>
-//                       <button className="p-2 hover:bg-rose-100 text-rose-500 rounded-lg transition-colors" title="Delete"><Trash2 size={18} /></button>
-//                     </div>
-//                   </td>
-//                 </tr>
-//               ))}
-//             </tbody>
-//           </table>
-//           {filteredApps.length === 0 && (
-//             <div className="py-20 text-center text-slate-400 dark:text-slate-500 italic text-sm">
-//               No applications found for these filters.
-//             </div>
-//           )}
-//         </div>
-//       </div>
-
-//       {selectedApp && (
-//         <ApplicationModal
-//           app={selectedApp}
-//           onClose={() => setSelectedApp(null)}
-//         />
-//       )}
-//     </div>
-//   );
-// };
-
-// export default Applications;
 
 
-
-
-
-
-
-
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
 import ApplicationModal from '../components/ApplicationReviewModal';
 import { 
-  Search, MapPin, Filter, MoreHorizontal, ChevronRight, 
-  Trash2, UserPlus, Mail, Phone, Calendar, AlertCircle, Plus 
+  Search, MapPin, ChevronRight, 
+  Trash2, Plus, ChevronLeft, Calendar, User, Hash
 } from 'lucide-react';
 
-const initialApplications = [
-  { 
-    id: "APP-001", 
-    date: "2026-02-19 14:20", 
-    name: "James Harrison", 
-    email: "james.h@example.com",
-    mobile: "(555) 123-4567",
-    location: "Burin",
-    cityPostal: "A0E 1E0",
-    priority: "High",
-    status: "New",
-    experience: "Beginner",
-    dob: "2005-09-12",
-    permitNumber: "BC-6623-HARR"
-  },
-  { 
-    id: "APP-002", 
-    date: "2026-02-18 09:15", 
-    name: "Sarah Williams", 
-    email: "s.williams@example.com",
-    mobile: "(555) 987-6543",
-    location: "St. John’s / Mount Pearl",
-    cityPostal: "A1A 1A1",
-    priority: "Normal",
-    status: "Review",
-    experience: "Intermediate",
-    dob: "2004-08-22",
-    permitNumber: "BC-5521-WILL"
-  }
-];
-
 const Applications = () => {
-  const [applications, setApplications] = useState(initialApplications);
+  // 1. STATE MANAGEMENT
+  const [applications, setApplications] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [priorityFilter, setPriorityFilter] = useState('All');
   const [locationFilter, setLocationFilter] = useState('All');
   const [selectedApp, setSelectedApp] = useState(null);
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const [paginationMeta, setPaginationMeta] = useState({ last_page: 1, total: 0 });
+  const [branches, setBranches] = useState([]);
 
-  // FEATURE: Dynamic Branch Management
-  const [branches, setBranches] = useState(["Burin", "Grand Falls", "Marystown", "St. John’s / Mount Pearl"]);
-  const [newBranch, setNewBranch] = useState("");
+  // 2. FETCH LOCATIONS
+  const fetchOnboardingData = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await axios.get(`http://127.0.0.1:8000/api/students/onboarding-data`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data && response.data.locations) {
+        setBranches(response.data.locations);
+      }
+    } catch (error) {
+      console.error("Error fetching locations:", error);
+    }
+  }, []);
 
-  const addBranch = () => {
-    if (newBranch.trim() && !branches.includes(newBranch)) {
-      setBranches([...branches, newBranch.trim()]);
-      setNewBranch("");
+  useEffect(() => {
+    fetchOnboardingData();
+  }, [fetchOnboardingData]);
+
+  // 3. FETCH APPLICATIONS
+  const fetchApplications = useCallback(async (pageNumber = 1) => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+
+      const params = new URLSearchParams({
+        status: 'pending',
+        search: searchTerm,
+        location: locationFilter,
+        page: pageNumber 
+      });
+
+      const response = await axios.get(`http://127.0.0.1:8000/api/students?${params}`, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json'
+        }
+      });
+
+      if (response.data && response.data.success) {
+        const rawData = response.data.data;
+        setPaginationMeta({
+          last_page: response.data.meta.last_page,
+          total: response.data.meta.total
+        });
+        setCurrentPage(response.data.meta.current_page);
+
+        const mappedData = rawData.map(item => ({
+          id: `APP-${String(item.id).padStart(3, '0')}`,
+          db_id: item.id,
+          date: new Date(item.created_at).toLocaleDateString() + ' ' + new Date(item.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+          name: item.user?.name || 'Unknown Student',
+          email: item.user?.email || 'N/A',
+          mobile: item.user?.phone || 'N/A',
+          location: item.province_name_text || 'N/A',
+          status: item.user?.status || 'pending',
+        }));
+        setApplications(mappedData);
+      }
+    } catch (error) {
+      console.error("Error fetching applications:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [searchTerm, locationFilter]);
+
+  // 4. DELETE FUNCTION
+  const handleDelete = async (db_id, studentName) => {
+    const confirmDelete = window.confirm(`Are you sure you want to delete the application for "${studentName}"?`);
+    if (confirmDelete) {
+      try {
+        const token = localStorage.getItem('access_token');
+        await axios.delete(`http://127.0.0.1:8000/api/students/${db_id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        fetchApplications(currentPage);
+      } catch (error) {
+        alert("Failed to delete application.");
+      }
     }
   };
 
-  const filteredApps = applications.filter(app => {
-    const term = searchTerm.toLowerCase();
-    const matchesSearch = app.name.toLowerCase().includes(term) || 
-                          app.cityPostal.toLowerCase().includes(term) ||
-                          app.location.toLowerCase().includes(term);
-    const matchesStatus = statusFilter === 'All' || app.status === statusFilter;
-    const matchesPriority = priorityFilter === 'All' || app.priority === priorityFilter;
-    const matchesLocation = locationFilter === 'All' || app.location === locationFilter;
-    
-    return matchesSearch && matchesStatus && matchesPriority && matchesLocation;
-  });
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      fetchApplications(1);
+    }, 500);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm, locationFilter, fetchApplications]);
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= paginationMeta.last_page) {
+      fetchApplications(newPage);
+    }
+  };
 
   return (
-    <div className="flex-1 flex flex-col min-h-screen bg-slate-50 dark:bg-[#0f172a] transition-colors overflow-hidden">
-      
-      {/* 1. ADAPTIVE HEADER */}
+    <div className="flex-1 flex flex-col min-h-screen bg-slate-50 dark:bg-background-dark transition-colors">
       <header className="px-4 md:px-8 pt-6 md:pt-8 pb-4">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-            <div>
-                <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white uppercase italic">Lead Management</h1>
-                <p className="text-xs md:text-sm text-slate-500 italic">Pipeline: Inquiry → Enrollment</p>
-            </div>
-            
-            {/* FEATURE: Add Branch Utility */}
-            <div className="flex gap-2 w-full md:w-auto">
-                <input 
-                    type="text" 
-                    placeholder="New Branch Name..." 
-                    value={newBranch}
-                    onChange={(e) => setNewBranch(e.target.value)}
-                    className="px-4 py-2 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:ring-2 focus:ring-[#008B8B]/50 dark:text-white"
-                />
-                <button 
-                    onClick={addBranch}
-                    className="bg-[#008B8B] text-white p-2 rounded-xl hover:scale-105 transition-transform active:scale-95 shadow-lg shadow-[#008B8B]/20"
-                >
-                    <Plus size={18} />
-                </button>
-            </div>
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white uppercase italic">Pending Approvals</h1>
+            <p className="text-xs md:text-sm text-slate-500 italic">Reviewing students awaiting account activation</p>
+          </div>
         </div>
 
-        {/* Filter Bar */}
         <div className="flex flex-col xl:flex-row items-stretch xl:items-center gap-3 mb-6">
-          <div className="grid grid-cols-2 md:flex gap-2 flex-1">
-            
-            {/* HOVER TRIGGER WRAPPER: Location */}
-            <div className="group relative">
+          <div className="flex gap-2 flex-1">
+            <div className="group relative w-full md:w-80">
                 <select 
-                value={locationFilter} 
-                onChange={(e) => setLocationFilter(e.target.value)}
-                // size attribute triggers the "open" look on hover in some browsers, 
-                // but standard CSS focus is more reliable for native selects.
-                className="w-full px-3 py-2 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-slate-700 rounded-xl text-xs md:text-sm dark:text-white outline-none focus:ring-2 focus:ring-[#008B8B] group-hover:border-[#008B8B] cursor-pointer"
+                  value={locationFilter} 
+                  onChange={(e) => setLocationFilter(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-white dark:bg-card-dark border border-slate-200 dark:border-slate-700 rounded-xl text-xs md:text-sm dark:text-white outline-none focus:ring-2 focus:ring-teal cursor-pointer"
                 >
-                <option value="All">All Branches</option>
-                {branches.map(branch => (
-                    <option key={branch} value={branch}>{branch}</option>
-                ))}
+                  <option value="All">All Locations / Provinces</option>
+                  {branches.map(branch => (
+                      <option key={branch.id} value={branch.id}>{branch.province_name}</option>
+                  ))}
                 </select>
             </div>
-
-            <div className="group relative">
-                <select 
-                value={statusFilter} 
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-slate-700 rounded-xl text-xs md:text-sm dark:text-white outline-none focus:ring-2 focus:ring-[#008B8B] group-hover:border-[#008B8B] cursor-pointer"
-                >
-                <option value="All">All Status</option>
-                <option value="New">New</option>
-                <option value="Review">Review</option>
-                <option value="Rejected">Rejected</option>
-                </select>
-            </div>
-
-            <div className="group relative hidden md:block">
-                <select 
-                value={priorityFilter} 
-                onChange={(e) => setPriorityFilter(e.target.value)}
-                className="px-3 py-2 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-slate-700 rounded-xl text-xs md:text-sm dark:text-white outline-none focus:ring-2 focus:ring-[#008B8B] group-hover:border-[#008B8B] cursor-pointer"
-                >
-                <option value="All">All Priority</option>
-                <option value="High">High Priority</option>
-                <option value="Normal">Normal</option>
-                </select>
+            <div className="hidden md:flex items-center px-4 py-2 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+               <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">{paginationMeta.total} Total Found</span>
             </div>
           </div>
 
-          <div className="relative w-full md:max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+          {/* SEARCH BOX: Much bigger max-width */}
+          <div className="relative w-full md:max-w-3xl">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
             <input
               type="text"
-              placeholder="Search Name or Postal Code..."
+              placeholder="Search Student Name or Email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-slate-700 rounded-xl text-xs md:text-sm dark:text-white outline-none focus:ring-2 focus:ring-[#008B8B]/50"
+              className="w-full pl-12 pr-4 py-3.5 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-slate-700 rounded-xl text-sm dark:text-white outline-none focus:ring-2 focus:ring-[#008B8B]/50 shadow-sm"
             />
           </div>
         </div>
       </header>
 
-      {/* 2. RESPONSIVE TABLE CONTAINER */}
-      <div className="flex-1 px-4 md:px-8 pb-8 overflow-y-auto custom-scrollbar">
-        
-        {/* MOBILE VIEW */}
-        <div className="grid grid-cols-1 gap-4 md:hidden">
-          {filteredApps.map((app) => (
-            <div key={app.id} className="bg-white dark:bg-[#111827] p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden transition-all">
-              {app.priority === 'High' && <div className="absolute top-0 left-0 w-1.5 h-full bg-rose-500" />}
-              
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                  <h3 className="text-sm font-bold dark:text-white">{app.name}</h3>
-                  <p className="text-[10px] text-slate-400 font-mono uppercase tracking-tighter">ID: {app.id} • {app.date}</p>
-                </div>
-                <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest ${
-                  app.priority === 'High' ? 'bg-rose-500 text-white shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                }`}>
-                  {app.priority}
-                </span>
-              </div>
-
-              <div className="space-y-2 mb-4">
-                <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
-                  <Mail size={14} className="text-[#008B8B]" /> {app.email}
-                </div>
-                <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
-                  <MapPin size={14} className="text-[#008B8B]" /> {app.location}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <button 
-                  onClick={() => setSelectedApp(app)}
-                  className="py-2.5 bg-[#008B8B] hover:bg-[#007373] text-white rounded-xl text-xs font-bold transition-all active:scale-95"
-                >
-                  Review
-                </button>
-                <button className="py-2.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700 transition-all active:scale-95">
-                  Assign
-                </button>
-              </div>
+      <div className="flex-1 px-4 md:px-8 pb-32 overflow-y-auto custom-scrollbar">
+        {loading ? (
+            <div className="flex justify-center py-20 text-[#008B8B] animate-pulse font-bold italic uppercase tracking-widest">Fetching from server...</div>
+        ) : (
+          <>
+            {/* DESKTOP TABLE: Visible only on md and up */}
+            <div className="hidden md:block bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+              <table className="w-full text-left">
+                  <thead className="bg-slate-50 dark:bg-[#1f2937]/50 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">
+                  <tr className="text-[11px] font-bold uppercase tracking-widest">
+                      <th className="p-5">Application ID</th>
+                      <th className="p-5">Student Details</th>
+                      <th className="p-5">Location</th>
+                      <th className="p-5">Date Submitted</th>
+                      <th className="p-5 text-right">Actions</th>
+                  </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                  {applications.map((app) => (
+                      <tr key={app.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors group">
+                      <td className="p-5">
+                          <div className="font-bold text-slate-900 dark:text-white leading-none mb-1">{app.id}</div>
+                          <div className="text-[9px] font-black text-[#008B8B] uppercase tracking-widest">Pending Review</div>
+                      </td>
+                      <td className="p-5">
+                          <div className="font-semibold text-slate-900 dark:text-white leading-tight">{app.name}</div>
+                          <div className="text-[11px] text-slate-500 mt-0.5">{app.email}</div>
+                      </td>
+                      <td className="p-5">
+                          <div className="flex items-center gap-1.5 text-sm dark:text-slate-300">
+                          <MapPin size={14} className="text-slate-400 shrink-0" />
+                          {app.location}
+                          </div>
+                      </td>
+                      <td className="p-5">
+                          <div className="text-xs font-bold text-slate-600 dark:text-slate-400 italic">{app.date}</div>
+                      </td>
+                      <td className="p-5 text-right">
+                          <div className="flex items-center justify-end gap-3">
+                              <button onClick={() => setSelectedApp(app)} className="p-2 hover:bg-[#008B8B]/10 text-[#008B8B] rounded-lg font-bold text-xs flex items-center gap-2">
+                                  Review <ChevronRight size={18} />
+                              </button>
+                              <button onClick={() => handleDelete(app.db_id, app.name)} className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg">
+                                  <Trash2 size={18} />
+                              </button>
+                          </div>
+                      </td>
+                      </tr>
+                  ))}
+                  </tbody>
+              </table>
             </div>
-          ))}
-        </div>
 
-        {/* DESKTOP VIEW */}
-        <div className="hidden md:block bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm transition-all">
-          <table className="w-full text-left">
-            <thead className="bg-slate-50 dark:bg-[#1f2937]/50 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">
-              <tr className="text-[11px] font-bold uppercase tracking-widest">
-                <th className="p-5">ID & Date</th>
-                <th className="p-5">Student Details</th>
-                <th className="p-5">Location</th>
-                <th className="p-5">Priority</th>
-                <th className="p-5 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
-              {filteredApps.map((app) => (
-                <tr key={app.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors group">
-                  <td className="p-5">
-                    <div className="font-bold text-slate-900 dark:text-white leading-none mb-1">{app.id}</div>
-                    <div className="text-[10px] text-slate-400 font-mono tracking-tight">{app.date}</div>
-                  </td>
-                  <td className="p-5">
-                    <div className="font-semibold text-slate-900 dark:text-white leading-tight">{app.name}</div>
-                    <div className="text-[11px] text-slate-500 mt-0.5">{app.email}</div>
-                  </td>
-                  <td className="p-5">
-                    <div className="flex items-center gap-1.5 text-sm dark:text-slate-300">
-                      <MapPin size={14} className="text-slate-400 shrink-0" />
-                      {app.location}
+            {/* MOBILE LIST: Visible only on screens smaller than md */}
+            <div className="md:hidden space-y-4">
+              {applications.map((app) => (
+                <div key={app.id} className="bg-white dark:bg-[#111827] p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+                  <div className="absolute top-0 right-0 px-3 py-1 bg-[#008B8B]/10 text-[#008B8B] text-[10px] font-bold rounded-bl-xl uppercase tracking-widest">
+                    Pending
+                  </div>
+                  
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                      <User size={20} className="text-[#008B8B]" />
                     </div>
-                    <div className="text-[10px] text-slate-400 pl-5">{app.cityPostal}</div>
-                  </td>
-                  <td className="p-5">
-                    <span className={`inline-flex px-2.5 py-0.5 rounded-lg text-[10px] font-bold ${
-                      app.priority === 'High' 
-                        ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20' 
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                    }`}>
-                      {app.priority.toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="p-5 text-right">
-                    <div className="flex items-center justify-end gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-all duration-200">
-                      <button onClick={() => setSelectedApp(app)} className="p-2 hover:bg-[#008B8B]/10 text-[#008B8B] rounded-lg transition-colors" title="Review Profile"><ChevronRight size={18} /></button>
-                      <button className="p-2 hover:bg-rose-100 text-rose-500 rounded-lg transition-colors" title="Delete"><Trash2 size={18} /></button>
+                    <div>
+                      <h3 className="font-bold text-slate-900 dark:text-white">{app.name}</h3>
+                      <p className="text-xs text-slate-500">{app.email}</p>
                     </div>
-                  </td>
-                </tr>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 mb-5 text-[12px]">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-slate-400 font-medium flex items-center gap-1"><Hash size={12}/> ID</span>
+                      <span className="font-bold dark:text-slate-200">{app.id}</span>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-slate-400 font-medium flex items-center gap-1"><MapPin size={12}/> Location</span>
+                      <span className="font-bold dark:text-slate-200 truncate">{app.location}</span>
+                    </div>
+                    <div className="flex flex-col gap-1 col-span-2">
+                      <span className="text-slate-400 font-medium flex items-center gap-1"><Calendar size={12}/> Date Submitted</span>
+                      <span className="font-bold dark:text-slate-200">{app.date}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => setSelectedApp(app)}
+                      className="flex-1 bg-[#008B8B] text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2"
+                    >
+                      Review Application <ChevronRight size={16} />
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(app.db_id, app.name)}
+                      className="px-3 bg-rose-50 dark:bg-rose-500/10 text-rose-500 rounded-xl"
+                    >
+                      <Trash2 size={20} />
+                    </button>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
-          {filteredApps.length === 0 && (
-            <div className="py-20 text-center text-slate-400 dark:text-slate-500 italic text-sm">
-              No applications found for these filters.
             </div>
-          )}
-        </div>
+
+            {applications.length === 0 && (
+                <div className="py-20 text-center text-slate-400 italic text-sm">No applications found.</div>
+            )}
+          </>
+        )}
       </div>
+
+      {/* PAGINATION: Fixed to Bottom Center */}
+      {!loading && paginationMeta.last_page > 1 && (
+        <div className="fixed bottom-0 left-0 right-0 flex justify-center items-center gap-4 py-6 bg-white/90 dark:bg-[#0f172a]/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 z-50 shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
+            <button 
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-30 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 shadow-sm"
+            >
+                <ChevronLeft size={20} />
+            </button>
+            
+            <div className="flex items-center gap-2">
+                <span className="text-xs font-medium dark:text-slate-400">Page</span>
+                <span className="px-4 py-1.5 bg-[#008B8B] text-white rounded-lg text-sm font-bold shadow-lg shadow-[#008B8B]/20">
+                    {currentPage}
+                </span>
+                <span className="text-xs font-medium dark:text-slate-400">of {paginationMeta.last_page}</span>
+            </div>
+
+            <button 
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === paginationMeta.last_page}
+                className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-30 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 shadow-sm"
+            >
+                <ChevronRight size={20} />
+            </button>
+        </div>
+      )}
 
       {selectedApp && (
         <ApplicationModal
-          app={selectedApp}
-          onClose={() => setSelectedApp(null)}
+          studentId={selectedApp.db_id}
+          onClose={() => {
+            setSelectedApp(null);
+            fetchApplications(currentPage);
+          }}
+          onRefresh={() => fetchApplications(currentPage)}
         />
       )}
     </div>

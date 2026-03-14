@@ -8,6 +8,8 @@ import {
 
 const InstructorSidebar = ({ isOpen, setIsOpen }) => {
   const navigate = useNavigate();
+  const [loggingOut, setLoggingOut] = useState(false);
+  
 
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem("theme") === "dark";
@@ -23,9 +25,35 @@ const InstructorSidebar = ({ isOpen, setIsOpen }) => {
     }
   }, [darkMode]);
 
-  const handleLogout = () => {
-    navigate("/login");
-    setIsOpen(false);
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      
+      // Call logout API
+      await axios.post(`${API_BASE}/logout`, {}, {
+        headers: { 
+          Authorization: `Bearer ${token}` 
+        }
+      });
+      
+      // Clear local storage
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('user');
+      
+      // Redirect to login
+      navigate("/login");
+      
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Even if API fails, clear local storage and redirect
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('user');
+      navigate("/login");
+    } finally {
+      setLoggingOut(false);
+      setIsOpen(false);
+    }
   };
 
   const menuItems = [
@@ -41,7 +69,7 @@ const InstructorSidebar = ({ isOpen, setIsOpen }) => {
       {/* 1. MOBILE OVERLAY (Backdrop) */}
       <div
         className={`
-          fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] lg:hidden 
+          fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-60 lg:hidden 
           transition-opacity duration-300
           ${isOpen ? "opacity-100 visible" : "opacity-0 invisible"}
         `}
@@ -51,8 +79,8 @@ const InstructorSidebar = ({ isOpen, setIsOpen }) => {
       {/* 2. SIDEBAR CONTAINER */}
       <aside
         className={`
-          fixed top-0 left-0 bottom-0 z-[70] w-72 
-          bg-white dark:bg-[#0f172a] border-r border-slate-200 dark:border-slate-800
+          fixed top-0 left-0 bottom-0 z-70 w-72 
+          bg-white dark:bg-background-dark border-r border-slate-200 dark:border-slate-800
           flex flex-col transition-all duration-300 ease-in-out
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
           lg:translate-x-0 lg:static lg:h-screen
@@ -61,12 +89,12 @@ const InstructorSidebar = ({ isOpen, setIsOpen }) => {
         {/* LOGO SECTION & MOBILE CLOSE BUTTON */}
         <div className="p-6 flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-[#008B8B] rounded-xl flex items-center justify-center text-white shadow-lg shadow-[#008B8B]/20">
+            <div className="w-10 h-10 bg-teal rounded-xl flex items-center justify-center text-white shadow-lg shadow-teal/20">
               <Command size={22} strokeWidth={2.5} />
             </div>
             <div>
               <h2 className="text-lg font-black tracking-tighter text-slate-800 dark:text-white uppercase italic leading-none">
-                Terra <span className="text-[#008B8B]">Nova</span>
+                Terra <span className="text-teal">Nova</span>
               </h2>
               <p className="text-[10px] uppercase font-black tracking-[0.2em] text-slate-400 mt-1">
                 Instructor
@@ -94,7 +122,7 @@ const InstructorSidebar = ({ isOpen, setIsOpen }) => {
               className={({ isActive }) =>
                 `flex items-center space-x-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-200 group
                 ${isActive
-                    ? "bg-[#008B8B] text-white shadow-xl shadow-[#008B8B]/20"
+                    ? "bg-teal text-white shadow-xl shadow-teal/20"
                     : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                 }`
               }
@@ -113,7 +141,7 @@ const InstructorSidebar = ({ isOpen, setIsOpen }) => {
         <div className="p-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
           
           {/* THEME TOGGLE CARD */}
-          <div className="bg-slate-50 dark:bg-slate-800/50 rounded-[1.5rem] p-2 flex items-center justify-between">
+          <div className="bg-slate-50 dark:bg-slate-800/50 rounded-3xl p-2 flex items-center justify-between">
             <button
               onClick={() => setDarkMode(false)}
               className={`flex-1 flex items-center justify-center py-2 rounded-xl transition-all ${!darkMode ? "bg-white text-orange-500 shadow-sm" : "text-slate-400"}`}
@@ -122,7 +150,7 @@ const InstructorSidebar = ({ isOpen, setIsOpen }) => {
             </button>
             <button
               onClick={() => setDarkMode(true)}
-              className={`flex-1 flex items-center justify-center py-2 rounded-xl transition-all ${darkMode ? "bg-[#1e293b] text-indigo-400 shadow-sm" : "text-slate-400"}`}
+              className={`flex-1 flex items-center justify-center py-2 rounded-xl transition-all ${darkMode ? "bg-card-dark text-indigo-400 shadow-sm" : "text-slate-400"}`}
             >
               <Moon size={16} />
             </button>
@@ -131,10 +159,27 @@ const InstructorSidebar = ({ isOpen, setIsOpen }) => {
           {/* LOGOUT BUTTON */}
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center space-x-2 py-4 rounded-2xl bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all font-black text-[10px] uppercase tracking-[0.2em]"
+            disabled={loggingOut}
+            className="mt-1 w-full flex items-center justify-between px-4 py-3 rounded-lg
+                       bg-red-100 dark:bg-red-900/30
+                       text-red-600 dark:text-red-400
+                       hover:bg-red-200 dark:hover:bg-red-900/50
+                       transition-all duration-300 font-semibold
+                       disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <LogOut size={16} />
-            <span>Terminate Session</span>
+            <div className="flex items-center space-x-3">
+              <span className="material-symbols-outlined text-[20px]">
+                {loggingOut ? "hourglass_empty" : "logout"}
+              </span>
+              <span className="text-[14px]">
+                {loggingOut ? "Logging out..." : "Logout"}
+              </span>
+            </div>
+            
+            {/* Optional spinner for visual feedback */}
+            {loggingOut && (
+              <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+            )}
           </button>
         </div>
       </aside>

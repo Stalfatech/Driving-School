@@ -1,215 +1,325 @@
-import React from "react";
-import { X } from "lucide-react";
 
-// NEW: Receiving onAdd prop
-const InstructorRegisterModal = ({ isOpen, onClose, onAdd }) => {
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { 
+  X, User, Mail, Phone, MapPin, BadgeCheck, 
+  Car, Globe, Briefcase, FileText, Save, Loader2, UploadCloud, CheckSquare, Camera 
+} from 'lucide-react';
+
+const InstructorRegistrationModal = ({ isOpen, onClose, onRefresh }) => {
+  const [loading, setLoading] = useState(false);
+  const [locations, setLocations] = useState([]);
+  const [availableCars, setAvailableCars] = useState([]);
+  const [qualifications, setQualifications] = useState([]);
+  const [previewUrl, setPreviewUrl] = useState(null);
+
+  const classOptions = [
+    "Class 5 (Car)", "Class 6 (Motorcycle)", "Class 1 (Commercial)", "Class 4 (Ambulance/Taxi)"
+  ];
+
+  const provinceOptions = [
+    "Alberta", "British Columbia", "Manitoba", "New Brunswick", 
+    "Newfoundland and Labrador", "Nova Scotia", "Ontario", 
+    "Prince Edward Island", "Quebec", "Saskatchewan"
+  ];
+
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    contact: '', 
+    dob: '',
+    language: 'English',
+    country: 'Canada',
+    city: '', 
+    province: 'Ontario',
+    street_address: '',
+    postal_code: '', // Ensure this is initialized
+    assigned_location: '', 
+    emp_status: 'Full-time',
+    car_id: '',
+    licence_no: '',
+    inst_license_no: '',
+    licence_expiry: '',
+  });
+
+  const [files, setFiles] = useState({
+    profile_picture: null,
+    doc_criminal_cert: null,
+    doc_vulnerable_sector: null,
+    doc_driver_abstract: null
+  });
+
+  // Fetch Locations
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        const res = await axios.get('http://127.0.0.1:8000/api/locations', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        setLocations(res.data.data);
+      } catch (err) { console.error("Error fetching locations", err); }
+    };
+    if (isOpen) fetchLocations();
+  }, [isOpen]);
+
+  // Fetch Cars based on Location
+  // useEffect(() => {
+  //   const fetchCarsByLocation = async () => {
+  //     if (!formData.assigned_location) { setAvailableCars([]); return; }
+  //     try {
+  //       const token = localStorage.getItem('access_token');
+  //       const res = await axios.get('http://127.0.0.1:8000/api/cars', {
+  //         headers: { 'Authorization': `Bearer ${token}` }
+  //       });
+  //       const filtered = res.data.data.filter(car => 
+  //           String(car.location_id) === String(formData.assigned_location)
+  //       );
+  //       setAvailableCars(filtered);
+  //     } catch (err) { console.error("Error fetching cars", err); }
+  //   };
+  //   fetchCarsByLocation();
+  // }, [formData.assigned_location]);
+  useEffect(() => {
+  const fetchCarsByLocation = async () => {
+    if (!formData.assigned_location) {
+      setAvailableCars([]);
+      return;
+    }
+    try {
+      // 1. Find the ID of the location that matches the selected name
+      const selectedLocation = locations.find(l => l.province_name === formData.assigned_location);
+      if (!selectedLocation) return;
+
+      const token = localStorage.getItem('access_token');
+      const res = await axios.get('http://127.0.0.1:8000/api/cars', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      // 2. Filter cars using the found ID
+      const filtered = res.data.data.filter(car => 
+          String(car.location_id) === String(selectedLocation.id)
+      );
+      setAvailableCars(filtered);
+    } catch (err) {
+      console.error("Error fetching cars", err);
+    }
+  };
+  fetchCarsByLocation();
+}, [formData.assigned_location, locations]); // Add locations to dependency array
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+  
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    setFiles(prev => ({ ...prev, [e.target.name]: file }));
+    if (e.target.name === 'profile_picture' && file) {
+      setPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const data = new FormData();
+    
+    // Map form data and handle potential nulls
+    Object.keys(formData).forEach(key => {
+      let value = formData[key];
+      
+      // Fix for "Column cannot be null" error: send empty string if value is empty
+      if (value === null || value === undefined) value = '';
+
+      if (key === 'contact') {
+        data.append('phone', value);
+        data.append('password', value); // Default password as phone
+        data.append('password_confirmation', value);
+      } else {
+        data.append(key, value);
+      }
+    });
+
+    data.append('qualifications_to_teach', qualifications.join(', '));
+
+    // Append Files
+    if (files.profile_picture) data.append('profile_picture', files.profile_picture);
+    if (files.doc_criminal_cert) data.append('doc_criminal_cert', files.doc_criminal_cert);
+    if (files.doc_vulnerable_sector) data.append('doc_vulnerable_sector', files.doc_vulnerable_sector);
+    if (files.doc_driver_abstract) data.append('doc_driver_abstract', files.doc_driver_abstract);
+
+    try {
+      const token = localStorage.getItem('access_token');
+      await axios.post('http://127.0.0.1:8000/api/instructors', data, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data',
+          'Accept': 'application/json' 
+        }
+      });
+      alert("Instructor Registered Successfully!");
+      onRefresh();
+      onClose();
+    } catch (err) {
+      console.error("Backend Error:", err.response?.data);
+      alert(`Error: ${err.response?.data?.message || "Check required fields."}`);
+    } finally { setLoading(false); }
+  };
+
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    // NEW: Collect form data
-    const formData = new FormData(e.target);
-    const data = {
-      name: `${formData.get("firstName")} ${formData.get("lastName")}`,
-      contact: formData.get("phone"),
-      email: formData.get("email"),
-      dob: formData.get("dob"),
-      location: formData.get("location"),
-      address: formData.get("streetAddress"),
-      license: formData.get("instructorLicense"),
-      expiry: formData.get("expiry"),
-      vehicle: "Vehicle TBD", // Can add inputs for these later
-      plate: "Plate TBD",
-    };
-
-    onAdd(data); // Pass to parent
-    onClose();
-  };
-
-  const handleReset = () => {
-    const form = document.getElementById("instructorRegForm");
-    if (form) form.reset();
-  };
-
   return (
-    <div className="fixed inset-0 z-100 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 font-['Lexend']">
-      <div className="bg-[#f0f7ff] dark:bg-background-dark w-full max-w-5xl h-full max-h-[92vh] rounded-4xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 backdrop-blur-md p-4">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-5xl max-h-[95vh] overflow-y-auto rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800">
         
-        <div className="flex items-center justify-between px-8 py-5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shrink-0">
-          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm">
-            <span>Instructors</span>
-            <span className="material-symbols-outlined text-sm">chevron_right</span>
-            <span className="text-slate-900 dark:text-white font-bold tracking-tight uppercase italic">Register Staff</span>
+        <div className="sticky top-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center z-20">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Register New Instructor</h2>
+            <p className="text-sm text-slate-500 font-medium">Please fill in all address details including Postal Code.</p>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full text-slate-400 transition-colors">
-            <X size={20} />
-          </button>
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-400"><X size={24} /></button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-8">
-          <form id="instructorRegForm" onSubmit={handleSubmit} className="space-y-8">
-            
-            <section className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-              <h3 className="text-sm font-bold text-[#2563eb] dark:text-blue-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                <span className="material-symbols-outlined text-lg">person</span> Personal Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tight">First Name</label>
-                  <input name="firstName" type="text" placeholder="e.g. Jean" className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-background-dark text-sm dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20" required />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tight">Last Name</label>
-                  <input name="lastName" type="text" placeholder="e.g. Dupont" className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-background-dark text-sm dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20" required />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tight">Date of Birth</label>
-                  <input name="dob" type="date" className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-background-dark text-sm text-slate-900 dark:text-white outline-none" required />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tight">Email Address</label>
-                  <input name="email" type="email" placeholder="jean.dupont@example.ca" className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-background-dark text-sm dark:text-white outline-none" required />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tight">Phone Number</label>
-                  <input name="phone" type="tel" placeholder="+1 (555) 000-0000" className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-background-dark text-sm dark:text-white outline-none" required />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tight">Primary Language</label>
-                  <select name="language" className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-background-dark text-sm dark:text-white outline-none">
-                    <option>English</option>
-                    <option>French</option>
-                    <option>Bilingual (EN/FR)</option>
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1.5 md:col-span-3">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tight">Assigned Location</label>
-                  <select name="location" className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-background-dark text-sm dark:text-white outline-none" required>
-                    <option value="">Select a location</option>
-                    <option value="Burin">Burin</option>
-                    <option value="Grand Falls">Grand Falls</option>
-                    <option value="Marystown">Marystown</option>
-                    <option value="St. John’s / Mount Pearl">St. John’s / Mount Pearl</option>
-                  </select>
-                </div>
+        <form onSubmit={handleSubmit} className="p-8 space-y-10">
+          
+          <section className="flex flex-col items-center justify-center gap-4">
+            <div className="relative group">
+              <div className="size-28 rounded-full bg-slate-100 dark:bg-slate-800 border-4 border-white dark:border-slate-900 shadow-lg overflow-hidden flex items-center justify-center">
+                {previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : <User size={40} className="text-slate-300" />}
               </div>
-            </section>
+              <label className="absolute bottom-0 right-0 p-2 bg-teal text-white rounded-full cursor-pointer hover:scale-110 transition-transform shadow-md">
+                <Camera size={16} />
+                <input type="file" name="profile_picture" className="hidden" accept="image/*" onChange={handleFileChange} />
+              </label>
+            </div>
+            <span className="text-[10px] font-bold uppercase text-slate-400">Profile Photo</span>
+          </section>
 
-            <section className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-              <h3 className="text-sm font-bold text-[#2563eb] dark:text-blue-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                <span className="material-symbols-outlined text-lg">home</span> Residential Address
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="md:col-span-2 flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tight">Street Address</label>
-                  <input name="streetAddress" type="text" placeholder="123 Maple Leaf Ave" className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-background-dark text-sm dark:text-white outline-none" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tight">City</label>
-                  <input name="city" type="text" placeholder="Toronto" className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-background-dark text-sm dark:text-white outline-none" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tight">Province</label>
-                  <select name="province" className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-background-dark text-sm dark:text-white outline-none">
-                    <option>Ontario</option>
-                    <option>Quebec</option>
-                    <option>Newfoundland and Labrador</option>
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tight">Postal Code</label>
-                  <input name="postalCode" type="text" placeholder="M5V 2L7" className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-background-dark text-sm dark:text-white outline-none" />
-                </div>
-              </div>
-            </section>
+          <section className="space-y-4">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-teal flex items-center gap-2"><User size={14}/> Identity & Auth</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <InputField label="Full Name" name="name" value={formData.name} onChange={handleChange} />
+              <InputField label="Email" name="email" type="email" value={formData.email} onChange={handleChange} />
+              <InputField label="Phone" name="contact" value={formData.contact} onChange={handleChange} placeholder="709-000-0000" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <SelectField 
+                label="Assigned Location" 
+                name="assigned_location" 
+                value={formData.assigned_location} 
+                onChange={handleChange} 
+                options={locations.map(loc => ({ label: loc.province_name, value: loc.province_name  }))} 
+              />
+              <SelectField 
+                label="Assign Car" 
+                name="car_id" 
+                value={formData.car_id} 
+                onChange={handleChange} 
+                disabled={!formData.assigned_location}
+                options={availableCars.map(car => ({ 
+                    label: `${car.car_name || 'Car'} (${car.number_plate || car.id})`, 
+                    value: car.id 
+                }))} 
+              />
+              <InputField label="Primary Language" name="language" value={formData.language} onChange={handleChange} />
+            </div>
+          </section>
 
-            <section className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-              <h3 className="text-sm font-bold text-[#2563eb] dark:text-blue-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                <span className="material-symbols-outlined text-lg">badge</span> Licensing & Certifications
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tight">Driver's License #</label>
-                  <input name="driversLicense" type="text" placeholder="D1234-56789-01234" className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-background-dark text-sm dark:text-white outline-none" required />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+             <div className="space-y-4">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-teal flex items-center gap-2"><BadgeCheck size={14}/> Credentials</h3>
+                <div className="grid grid-cols-1 gap-4">
+                  <InputField label="Driver's Licence #" name="licence_no" value={formData.licence_no} onChange={handleChange} />
+                  <InputField label="Instructor Licence #" name="inst_license_no" value={formData.inst_license_no} onChange={handleChange} />
+                  <InputField label="Licence Expiry" name="licence_expiry" type="date" value={formData.licence_expiry} onChange={handleChange} />
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tight">Instructor License #</label>
-                  <input name="instructorLicense" type="text" placeholder="INST-88291-AB" className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-background-dark text-sm dark:text-white outline-none" required />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tight">Instructor License Expiry</label>
-                  <input name="expiry" type="date" className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-background-dark text-sm text-slate-900 dark:text-white outline-none" required />
-                </div>
-              </div>
-              
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tight block mb-3">Qualified to Teach (Classes)</label>
-              <div className="flex flex-wrap gap-3">
-                {["Class 5 (Car)", "Class 6 (Motorcycle)", "Class 1 (Commercial)", "Class 4 (Ambulance/Taxi)"].map((cls) => (
-                  <label key={cls} className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors">
-                    <input type="checkbox" name="classes" value={cls} className="rounded text-[#2563eb] focus:ring-[#2563eb]" />
-                    <span className="text-sm font-medium dark:text-slate-300">{cls}</span>
-                  </label>
-                ))}
-              </div>
-            </section>
-
-            <section className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm pb-10">
-              <h3 className="text-sm font-bold text-[#2563eb] dark:text-blue-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                <span className="material-symbols-outlined text-lg">verified_user</span> Compliance & Documentation
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-4">
-                  {[{ label: "Criminal Record Check", sub: "Valid 6 months" }, { label: "Vulnerable Sector Search", sub: "Teaching minors" }].map((doc) => (
-                    <div key={doc.label} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-background-dark rounded-xl border border-slate-200 dark:border-slate-700">
-                      <div>
-                        <p className="text-sm font-bold dark:text-white">{doc.label}</p>
-                        <p className="text-[10px] text-slate-500 uppercase font-black">{doc.sub}</p>
-                      </div>
-                      <button type="button" className="text-[#2563eb] dark:text-blue-400 text-xs font-bold flex items-center gap-1 hover:underline">
-                        <span className="material-symbols-outlined text-sm!">upload_file</span> Upload
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-background-dark rounded-xl border border-slate-200 dark:border-slate-700">
-                    <div>
-                      <p className="text-sm font-bold dark:text-white">Driver Abstract (3-Year)</p>
-                      <p className="text-[10px] text-slate-500 uppercase font-black">Less than 6 demerits</p>
-                    </div>
-                    <button type="button" className="text-[#2563eb] dark:text-blue-400 text-xs font-bold flex items-center gap-1 hover:underline">
-                      <span className="material-symbols-outlined text-sm!">upload_file</span> Upload
-                    </button>
+             </div>
+             <div className="space-y-4">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-teal flex items-center gap-2"><MapPin size={14}/> Residency & DOB</h3>
+                <div className="grid grid-cols-1 gap-4">
+                  <InputField label="Date of Birth" name="dob" type="date" value={formData.dob} onChange={handleChange} />
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField label="City" name="city" value={formData.city} onChange={handleChange} />
+                    <SelectField label="Province" name="province" value={formData.province} onChange={handleChange} options={provinceOptions} />
                   </div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tight block mb-2">Employment Status</label>
-                    <div className="flex gap-6">
-                      <label className="flex items-center gap-2 text-sm font-medium dark:text-slate-300 cursor-pointer">
-                        <input type="radio" name="status" value="Full-time" defaultChecked className="text-[#2563eb] focus:ring-[#2563eb]" /> Full-time
-                      </label>
-                      <label className="flex items-center gap-2 text-sm font-medium dark:text-slate-300 cursor-pointer">
-                        <input type="radio" name="status" value="Contractor" className="text-[#2563eb] focus:ring-[#2563eb]" /> Contractor
-                      </label>
-                    </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <InputField label="Street Address" name="street_address" value={formData.street_address} onChange={handleChange} />
+                    <InputField label="Postal Code" name="postal_code" value={formData.postal_code} onChange={handleChange} placeholder="A1B 2C3" />
                   </div>
                 </div>
-              </div>
-            </section>
-          </form>
-        </div>
+             </div>
+          </div>
 
-        <div className="flex items-center justify-end gap-4 px-8 py-6 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0">
-          <button type="button" onClick={handleReset} className="px-6 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-            Reset Form
-          </button>
-          <button type="submit" form="instructorRegForm" className="px-10 py-2.5 rounded-xl bg-[#2563eb] text-white font-bold text-sm shadow-lg shadow-blue-500/20 hover:bg-blue-700 hover:-translate-y-0.5 active:translate-y-0 transition-all">
-            Complete Registration
-          </button>
-        </div>
+          {/* Qualifications & Files sections remain the same... */}
+          <section className="space-y-4">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-teal flex items-center gap-2"><CheckSquare size={14}/> Qualified to Teach</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50 dark:bg-slate-800/40 p-6 rounded-2xl">
+              {classOptions.map(cls => (
+                <label key={cls} className="flex items-center gap-3 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={qualifications.includes(cls)}
+                    onChange={() => setQualifications(prev => prev.includes(cls) ? prev.filter(i => i !== cls) : [...prev, cls])}
+                    className="size-5 rounded border-slate-300 text-teal focus:ring-teal"
+                  />
+                  <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">{cls}</span>
+                </label>
+              ))}
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-teal flex items-center gap-2"><FileText size={14}/> Compliance Files</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <FileUploader label="Criminal Cert" name="doc_criminal_cert" onChange={handleFileChange} file={files.doc_criminal_cert} />
+              <FileUploader label="Vulnerable Sector" name="doc_vulnerable_sector" onChange={handleFileChange} file={files.doc_vulnerable_sector} />
+              <FileUploader label="Driver Abstract" name="doc_driver_abstract" onChange={handleFileChange} file={files.doc_driver_abstract} />
+            </div>
+          </section>
+
+          <div className="flex justify-end gap-4 pt-8 border-t border-slate-100 dark:border-slate-800">
+            <button type="button" onClick={onClose} className="px-8 py-4 rounded-2xl font-bold text-slate-400 hover:text-slate-600">Cancel</button>
+            <button type="submit" disabled={loading} className="bg-teal text-white px-12 py-4 rounded-2xl font-bold shadow-xl shadow-teal/20 flex items-center gap-3 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
+              {loading ? <Loader2 className="animate-spin" /> : <Save />} Confirm Registration
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
 };
 
-export default InstructorRegisterModal;
+/* --- SHARED UI COMPONENTS (InputField, SelectField, FileUploader) stay as they were --- */
+const InputField = ({ label, type = "text", name, value, onChange, placeholder }) => (
+  <div className="flex flex-col gap-2">
+    <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider ml-1">{label}</label>
+    <input type={type} name={name} value={value} onChange={onChange} placeholder={placeholder} required className="w-full px-5 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 outline-none focus:border-teal text-sm font-semibold dark:text-white transition-all" />
+  </div>
+);
+
+const SelectField = ({ label, name, value, onChange, options, disabled }) => (
+  <div className="flex flex-col gap-2">
+    <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider ml-1">{label}</label>
+    <select name={name} value={value} onChange={onChange} required disabled={disabled} className={`w-full px-5 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 outline-none focus:border-teal text-sm font-semibold dark:text-white appearance-none ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
+      <option value="">Select...</option>
+      {options.map(o => <option key={o.value || o} value={o.value || o}>{o.label || o}</option>)}
+    </select>
+  </div>
+);
+
+const FileUploader = ({ label, name, onChange, file }) => (
+  <div className="relative group h-32">
+    <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-2 block">{label}</label>
+    <div className={`h-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-2 transition-all ${file ? 'border-teal bg-teal/5' : 'border-slate-200 dark:border-slate-700 group-hover:border-teal/50'}`}>
+      <UploadCloud className={file ? "text-teal" : "text-slate-300"} size={24} />
+      <span className="text-[10px] font-bold text-slate-500 px-4 text-center truncate w-full">{file ? file.name : "Upload File"}</span>
+      <input type="file" name={name} onChange={onChange} className="absolute inset-0 opacity-0 cursor-pointer" />
+    </div>
+  </div>
+);
+
+export default InstructorRegistrationModal;

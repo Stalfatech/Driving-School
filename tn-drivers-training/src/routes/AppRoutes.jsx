@@ -1,6 +1,10 @@
 import { Routes, Route } from "react-router-dom";
 import AdminLayout from "../layouts/AdminLayout";
 import InstructorLayout from "../layouts/InstructorLayout";
+//public page 
+import LandingPage from "../pages/LandingPage";
+import Login from "../pages/Login";
+import ResetPassword from "../pages/ResetPassword";
 
 // Admin Pages
 import Dashboard from "../pages/Dashboard";
@@ -25,33 +29,35 @@ import InstructorExpenses from "../pages/instructor/MyExpenses";
 const AppRoutes = () => {
   return (
     <Routes>
-      {/* ADMIN ROUTES */}
-      <Route element={<AdminLayout />}>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/students" element={<StudentPage />} />
-        <Route path="/packages" element={<Packages />} />
-        <Route path="/schedule" element={<Schedule />} />
-        <Route path="/payments" element={<Payments />} />
-        <Route path="/applications" element={<Application />} />
-        <Route path="/instructors" element={<InstructorFleet />} />
-        <Route path="/fleet" element={<FleetManagement />} />
-        <Route path="/finances" element={<Finances />} />
-        <Route path="/settings" element={<Settings />} />
+      {/* 1. PUBLIC ROUTE */}
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+
+
+      {/* 2. ADMIN ROUTES - Notice path="/admin" added to the parent */}
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route index element={<Dashboard />} />              {/* URL: /admin */}
+        <Route path="students" element={<StudentPage />} />   {/* URL: /admin/students */}
+        <Route path="packages" element={<Packages />} />     {/* URL: /admin/packages */}
+        <Route path="schedule" element={<Schedule />} />     {/* URL: /admin/schedule */}
+        <Route path="payments" element={<Payments />} />     {/* URL: /admin/payments */}
+        <Route path="applications" element={<Application />} /> {/* URL: /admin/applications */}
+        <Route path="instructors" element={<InstructorFleet />} />
+        <Route path="fleet" element={<FleetManagement />} />
+        <Route path="finances" element={<Finances />} />
+        <Route path="settings" element={<Settings />} />
       </Route>
 
-      {/* INSTRUCTOR ROUTES */}
+      {/* 3. INSTRUCTOR ROUTES */}
       <Route path="/instructor" element={<InstructorLayout />}>
-        <Route index element={<InstructorDashboard />} /> {/* /instructor */}
-        <Route path="/instructor/students" element={<MyStudents />} />
-        <Route path="/instructor/notifications" element={<NotificationPage />} />
-        <Route path="/instructor/schedule" element={<InstructorSchedule />} />
-        <Route path="/instructor/expenses" element={<InstructorExpenses />} />
+        <Route index element={<InstructorDashboard />} />    {/* URL: /instructor */}
+        <Route path="students" element={<MyStudents />} />   {/* URL: /instructor/students */}
+        <Route path="notifications" element={<NotificationPage />} />
+        <Route path="schedule" element={<InstructorSchedule />} />
+        <Route path="expenses" element={<InstructorExpenses />} />
       </Route>
-
-      {/* LOGIN ROUTE (Outer - no sidebar) */}
-      {/* <Route path="/login" element={<Login />} /> */}
     </Routes>
   );
 };
-
 export default AppRoutes;

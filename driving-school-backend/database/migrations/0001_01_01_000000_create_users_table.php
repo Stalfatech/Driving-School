@@ -15,12 +15,26 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
+            $table->string('phone')->nullable(); // Added for contact
             $table->string('password');
+            
+            // Shared profile picture for all roles
+            $table->string('profile_picture')->nullable();
+
+            // Roles: admin, instructor, student
+            $table->string('role')->default('student'); 
+
+            /** * Status Logic:
+             * Default is 'pending' so students must be approved.
+             * We will manually set 'active' in the Seeder or Controller for Admin/Instructors.
+             */
+            $table->string('status')->default('pending'); 
+
             $table->rememberToken();
             $table->timestamps();
         });
 
+        // Keep these as they are (standard Laravel system tables)
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();
             $table->string('token');

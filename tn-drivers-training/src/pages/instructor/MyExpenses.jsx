@@ -1,583 +1,404 @@
-// import React, { useState, useEffect } from 'react';
-// import { 
-//   Receipt, Car, Gauge, CloudUpload, ChevronDown, Save, 
-//   Landmark, Verified, History, Clock, CheckCircle2, 
-//   ShieldCheck, Edit3, AlertTriangle, Calendar, Bookmark
-// } from 'lucide-react';
 
-// const MyExpenses = () => {
-//   const instructorName = "Marc-André Leclaire"; 
-//   const instructorBranch = "Burin";
-
-//   // --- CAR MANAGEMENT STATE ---
-//   const [assignedCar, setAssignedCar] = useState({
-//     model: "2022 Toyota Corolla",
-//     plate: "HJH-412",
-//     id: "V-882",
-//     odometer: 42500,
-//     insurancePolicy: "NF-99234-X",
-//     rcNumber: "RC-7721-NL", // New Field
-//     insuranceStart: "2025-03-01",
-//     insuranceExpiry: "2026-03-25" 
-//   });
-
-//   const [isEditingCar, setIsEditingCar] = useState(false);
-//   const [tempCarData, setTempCarData] = useState({ ...assignedCar });
-//   const [insuranceStatus, setInsuranceStatus] = useState({ type: 'valid', message: '' });
-
-//   // --- INSURANCE ALERT LOGIC ---
-//   useEffect(() => {
-//     const today = new Date();
-//     const expiry = new Date(assignedCar.insuranceExpiry);
-//     const diffDays = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
-
-//     if (diffDays < 0) {
-//       setInsuranceStatus({ type: 'expired', message: 'Insurance Expired! Contact Admin Immediately.' });
-//     } else if (diffDays <= 30) {
-//       setInsuranceStatus({ type: 'warning', message: `Attention: Insurance expiring in ${diffDays} days.` });
-//     } else {
-//       setInsuranceStatus({ type: 'valid', message: 'Insurance coverage is active and valid.' });
-//     }
-//   }, [assignedCar.insuranceExpiry]);
-
-//   const handleCarUpdate = () => {
-//     setAssignedCar({ ...tempCarData });
-//     setIsEditingCar(false);
-//   };
-
-//   const [formData, setFormData] = useState({
-//     date: new Date().toISOString().split('T')[0],
-//     category: 'Fuel',
-//     merchant: '',
-//     totalAmount: '',
-//     receipt: null
-//   });
-
-//   const [isSubmitting, setIsSubmitting] = useState(false);
-
-//   const handleSubmit = (e) => {
-//     e.preventDefault();
-//     if (!formData.receipt) {
-//       alert("Please attach a receipt before submitting.");
-//       return;
-//     }
-//     setIsSubmitting(true);
-//     setTimeout(() => {
-//       setIsSubmitting(false);
-//       alert("Expense submitted successfully!");
-//     }, 1500);
-//   };
-
-//   return (
-//     <div className="max-w-7xl mx-auto space-y-8 pb-20 animate-in fade-in duration-500">
-      
-//       {/* 1. Header & Stats */}
-//       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-//         <div>
-//           <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white uppercase italic leading-none tracking-tighter">
-//             My <span className="text-[#008B8B]">Expenses</span>
-//           </h1>
-//           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2 italic">Personal Reimbursements • {instructorBranch}</p>
-//         </div>
-//         <div className="flex gap-4 bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
-//            <div className="text-right border-r border-slate-200 dark:border-slate-800 pr-4">
-//              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Pending</p>
-//              <p className="text-xl font-black text-orange-500 mt-1">$120.45</p>
-//            </div>
-//            <div className="text-right pl-2">
-//              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Reimbursed</p>
-//              <p className="text-xl font-black text-emerald-500 mt-1">$80.20</p>
-//            </div>
-//         </div>
-//       </div>
-
-//       {/* 2. INSURANCE COMPLIANCE ALERT */}
-//       <div className={`p-4 rounded-2xl flex items-center gap-3 border transition-all ${
-//         insuranceStatus.type === 'valid' 
-//           ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/20 text-emerald-600' 
-//           : 'bg-rose-50 dark:bg-rose-500/10 border-rose-100 dark:border-rose-500/20 text-rose-600 animate-pulse'
-//       }`}>
-//         {insuranceStatus.type === 'valid' ? <CheckCircle2 size={18}/> : <AlertTriangle size={18}/>}
-//         <p className="text-[10px] font-black uppercase tracking-[0.15em]">{insuranceStatus.message}</p>
-//       </div>
-
-//       {/* 3. MY CAR MANAGEMENT SECTION */}
-//       <section className="bg-white dark:bg-[#111827] text-slate-900 dark:text-white p-6 md:p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl transition-all duration-300 relative overflow-hidden group">
-//         <Car className="absolute -right-10 -top-10 size-48 opacity-5 dark:opacity-10 group-hover:rotate-12 transition-transform duration-700 text-slate-900 dark:text-white" />
-        
-//         <div className="relative z-10">
-//           <div className="flex justify-between items-center mb-8">
-//             <div className="flex items-center gap-3">
-//               <div className="bg-[#008B8B] p-3 rounded-2xl shadow-lg text-white">
-//                 <ShieldCheck size={20} />
-//               </div>
-//               <div>
-//                 <h2 className="text-sm font-black uppercase tracking-widest leading-none italic">My Assigned Car</h2>
-//                 <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase mt-1 tracking-tighter">Asset ID: {assignedCar.id}</p>
-//               </div>
-//             </div>
-
-//             {!isEditingCar ? (
-//               <button 
-//                 onClick={() => setIsEditingCar(true)}
-//                 className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 rounded-xl text-[10px] font-black text-slate-900 dark:text-white uppercase transition-all"
-//               >
-//                 <Edit3 size={14} /> Update Logs
-//               </button>
-//             ) : (
-//               <div className="flex gap-2">
-//                 <button onClick={() => setIsEditingCar(false)} className="px-4 py-2 text-[10px] font-black uppercase text-slate-400">Cancel</button>
-//                 <button onClick={handleCarUpdate} className="px-5 py-2.5 bg-[#008B8B] text-white rounded-xl text-[10px] font-black uppercase shadow-lg">Save Changes</button>
-//               </div>
-//             )}
-//           </div>
-
-//           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-6">
-//             <div className="space-y-1">
-//               <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase">Model</p>
-//               <p className="text-sm font-black italic text-slate-900 dark:text-white">{assignedCar.model} <span className="opacity-30 ml-1">🔒</span></p>
-//             </div>
-//             <div className="space-y-1">
-//               <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase">License Plate</p>
-//               <p className="text-sm font-black italic text-slate-900 dark:text-white">{assignedCar.plate} <span className="opacity-30 ml-1">🔒</span></p>
-//             </div>
-            
-//             <EditableField isEditing={isEditingCar} label="Odometer" value={tempCarData.odometer} type="number" suffix="KM" onChange={(val) => setTempCarData({...tempCarData, odometer: val})} />
-//             <EditableField isEditing={isEditingCar} label="Policy No." value={tempCarData.insurancePolicy} onChange={(val) => setTempCarData({...tempCarData, insurancePolicy: val})} />
-//             <EditableField isEditing={isEditingCar} label="RC Number" value={tempCarData.rcNumber} onChange={(val) => setTempCarData({...tempCarData, rcNumber: val})} />
-//             <EditableField isEditing={isEditingCar} label="Start Date" value={tempCarData.insuranceStart} type="date" onChange={(val) => setTempCarData({...tempCarData, insuranceStart: val})} />
-//             <EditableField isEditing={isEditingCar} label="Expiry Date" value={tempCarData.insuranceExpiry} type="date" color="text-rose-500" onChange={(val) => setTempCarData({...tempCarData, insuranceExpiry: val})} />
-//           </div>
-//         </div>
-//       </section>
-
-//       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-//         <div className="lg:col-span-2">
-//           <form onSubmit={handleSubmit} className="space-y-6">
-//             {/* Form Content remains the same as your source */}
-//             <section className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl space-y-8 transition-colors">
-//               <div className="flex items-center justify-between">
-//                 <h2 className="text-sm font-black text-[#008B8B] uppercase tracking-[0.2em] flex items-center gap-3">
-//                   <Receipt size={18} /> Transaction Details
-//                 </h2>
-//                 <span className="text-[9px] font-black bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full text-slate-500 dark:text-slate-400 uppercase tracking-widest leading-none">{instructorName}</span>
-//               </div>
-
-//               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-//                 <ExpenseInput label="Date of Purchase" type="date" value={formData.date} onChange={(val) => setFormData({...formData, date: val})} />
-//                 <ExpenseSelect label="Category" options={['Fuel', 'Maintenance', 'Parking', 'Supplies']} value={formData.category} onChange={(val) => setFormData({...formData, category: val})} />
-//                 <ExpenseInput label="Merchant Name" placeholder="e.g. Petro-Canada" value={formData.merchant} onChange={(val) => setFormData({...formData, merchant: val})} />
-//                 <ExpenseSelect label="Vehicle Used" options={[`${assignedCar.model} (${assignedCar.id})`]} value={formData.vehicle} onChange={(val) => setFormData({...formData, vehicle: val})} />
-//               </div>
-//             </section>
-            
-//             <section className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl space-y-8 transition-colors">
-//               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-//                 <div className="space-y-4">
-//                   <label className="text-[10px] font-black text-[#008B8B] uppercase tracking-widest ml-1 flex items-center gap-2 italic">
-//                     <Landmark size={14} /> Total Amount (CAD)
-//                   </label>
-//                   <div className="relative">
-//                     <span className="absolute left-6 top-1/2 -translate-y-1/2 text-[#008B8B] font-black text-2xl">$</span>
-//                     <input required type="number" step="0.01" className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-3xl pl-12 pr-6 py-6 text-3xl font-black text-slate-900 dark:text-white focus:ring-4 focus:ring-[#008B8B]/10 outline-none" placeholder="0.00" value={formData.totalAmount} onChange={(e) => setFormData({...formData, totalAmount: e.target.value})} />
-//                   </div>
-//                 </div>
-
-//                 <div className="space-y-2">
-//                   <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Evidence / Receipt</label>
-//                   <div className={`relative h-32 rounded-[2rem] border-2 border-dashed transition-all flex flex-col items-center justify-center p-4 ${formData.receipt ? 'border-emerald-500 bg-emerald-500/5' : 'border-slate-200 dark:border-slate-800 hover:border-[#008B8B] hover:bg-[#008B8B]/5'}`}>
-//                     <input required type="file" className="absolute inset-0 opacity-0 cursor-pointer z-10" onChange={(e) => setFormData({...formData, receipt: e.target.files[0]})} />
-//                     <CloudUpload size={24} className="text-slate-400 mb-1" />
-//                     <p className="text-[10px] font-black uppercase text-slate-400 italic truncate max-w-[150px]">{formData.receipt ? formData.receipt.name : "Click to Attach"}</p>
-//                   </div>
-//                 </div>
-//               </div>
-//               <button disabled={isSubmitting} className="w-full py-5 bg-[#008B8B] text-white rounded-[1.5rem] font-black text-xs uppercase tracking-[0.2em] shadow-xl hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50">
-//                 {isSubmitting ? "Submitting..." : "Submit Claim"}
-//               </button>
-//             </section>
-//           </form>
-//         </div>
-
-//         {/* 5. Sidebar History */}
-//         <div className="space-y-6">
-//           <div className="bg-white dark:bg-[#111827] rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl overflow-hidden transition-colors">
-//              <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-950/20">
-//                 <h3 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-2">
-//                   <History size={14} /> Claim History
-//                 </h3>
-//              </div>
-//              <div className="divide-y divide-slate-100 dark:divide-slate-800">
-//                 <ClaimRow date="Feb 24" cat="Fuel" price="65.00" status="Approved" />
-//                 <ClaimRow date="Feb 22" cat="Service" price="120.45" status="Pending" />
-//              </div>
-//           </div>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
-
-// // --- HELPER COMPONENTS ---
-
-// const EditableField = ({ isEditing, label, value, onChange, type = "text", suffix = "", color = "" }) => (
-//   <div className="space-y-1">
-//     <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter">{label}</p>
-//     {isEditing ? (
-//       <input 
-//         type={type} 
-//         className="bg-slate-100 dark:bg-white/10 border-none rounded-lg px-2 py-1 text-xs font-black w-full outline-none focus:ring-1 focus:ring-[#008B8B] text-slate-900 dark:text-white transition-all"
-//         value={value}
-//         onChange={(e) => onChange(e.target.value)}
-//       />
-//     ) : (
-//       <p className={`text-sm font-black italic ${color || 'text-slate-900 dark:text-white'}`}>{value} {suffix}</p>
-//     )}
-//   </div>
-// );
-
-// const ExpenseInput = ({ label, type, placeholder, value, onChange }) => (
-//   <div className="space-y-1.5">
-//     <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">{label}</label>
-//     <input 
-//       required 
-//       type={type} 
-//       className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-[#008B8B]/20 outline-none transition-all" 
-//       placeholder={placeholder} 
-//       value={value} 
-//       onChange={(e) => onChange(e.target.value)} 
-//     />
-//   </div>
-// );
-
-// const ExpenseSelect = ({ label, options, value, onChange }) => (
-//   <div className="space-y-1.5 relative">
-//     <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">{label}</label>
-//     <div className="relative group">
-//       <select 
-//         className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-[#008B8B]/20 outline-none appearance-none cursor-pointer transition-all" 
-//         value={value} 
-//         onChange={(e) => onChange(e.target.value)}
-//       >
-//         {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-//       </select>
-//       <ChevronDown size={16} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-[#008B8B] transition-colors" />
-//     </div>
-//   </div>
-// );
-
-// const ClaimRow = ({ date, cat, price, status }) => (
-//   <div className="p-6 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-all cursor-pointer group">
-//     <div>
-//       <p className="text-xs font-black text-slate-900 dark:text-white uppercase italic tracking-tight group-hover:text-[#008B8B] transition-colors">{cat}</p>
-//       <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase mt-0.5">{date}</p>
-//     </div>
-//     <div className="text-right">
-//       <p className="text-sm font-black text-slate-900 dark:text-white italic">${price}</p>
-//       <div className={`flex items-center justify-end gap-1 text-[8px] font-black uppercase mt-1 ${status === 'Approved' ? 'text-emerald-500' : 'text-orange-500'}`}>
-//         {status === 'Approved' ? <CheckCircle2 size={10} /> : <Clock size={10} />}
-//         {status}
-//       </div>
-//     </div>
-//   </div>
-// );
-
-// export default MyExpenses;
-
-
-
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import axios from 'axios';
 import { 
-  Receipt, Car, Gauge, CloudUpload, ChevronDown, Save, 
-  Landmark, Verified, History, Clock, CheckCircle2, 
-  ShieldCheck, Edit3, AlertTriangle, Calendar, Bookmark
+  Receipt, Car, CloudUpload, ChevronDown, Clock, CheckCircle2, 
+  ShieldCheck, Edit3, Plus, Eye, Trash2, X, FileText, AlertTriangle, Save, MessageSquare, Bell
 } from 'lucide-react';
 
+const API_BASE = "http://localhost:8000/api";
+
 const MyExpenses = () => {
-  const instructorName = "Marc-André Leclaire"; 
-  const instructorBranch = "Burin";
-
-  // --- CAR MANAGEMENT STATE ---
-  const [assignedCar, setAssignedCar] = useState({
-    model: "2022 Toyota Corolla",
-    plate: "HJH-412",
-    id: "V-882",
-    odometer: 42500,
-    insurancePolicy: "NF-99234-X",
-    rcNumber: "RC-7721-NL",
-    // Restored Starting Date
-    insuranceExpiry: "2026-03-25", 
-    rcExpiry: "2026-04-15"
-  });
-
+  const [loading, setLoading] = useState(true);
+  const [expenses, setExpenses] = useState([]);
+  const [assignedCar, setAssignedCar] = useState(null);
   const [isEditingCar, setIsEditingCar] = useState(false);
-  const [tempCarData, setTempCarData] = useState({ ...assignedCar });
-  const [complianceStatus, setComplianceStatus] = useState({ type: 'valid', message: '' });
-
-  // --- COMPLIANCE ALERT LOGIC (Insurance & RC) ---
-  useEffect(() => {
-    const today = new Date();
-    const insExpiry = new Date(assignedCar.insuranceExpiry);
-    const rcExpiry = new Date(assignedCar.rcExpiry);
-    
-    const insDiff = Math.ceil((insExpiry - today) / (1000 * 60 * 60 * 24));
-    const rcDiff = Math.ceil((rcExpiry - today) / (1000 * 60 * 60 * 24));
-
-    if (insDiff < 0 || rcDiff < 0) {
-      setComplianceStatus({ type: 'expired', message: 'CRITICAL: Documents Expired. Contact Admin.' });
-    } else if (insDiff <= 30 || rcDiff <= 30) {
-      const days = Math.min(insDiff, rcDiff);
-      setComplianceStatus({ type: 'warning', message: `Attention: Document expiry in ${days} days.` });
-    } else {
-      setComplianceStatus({ type: 'valid', message: 'All vehicle documentation is valid.' });
-    }
-  }, [assignedCar.insuranceExpiry, assignedCar.rcExpiry]);
-
-  const handleCarUpdate = () => {
-    setAssignedCar({ ...tempCarData });
-    setIsEditingCar(false);
-  };
-
+  const [carFormData, setCarFormData] = useState({});
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState(null);
+  const [isEditingExpense, setIsEditingExpense] = useState(false); 
+  
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
-    category: 'Fuel',
-    merchant: '',
-    totalAmount: '',
-    receipt: null
+    category: 'Fuel', payment_method: 'cash', amount: '', description: '', receipt: null
   });
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // --- LOGIC: CHECK FOR EXPIRY IN 1 MONTH ---
+  const expiryAlerts = useMemo(() => {
+    if (!assignedCar) return [];
+    const alerts = [];
+    const today = new Date();
+    const nextMonth = new Date();
+    nextMonth.setMonth(today.getMonth() + 1);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!formData.receipt) {
-      alert("Please attach a receipt before submitting.");
-      return;
-    }
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      alert("Expense submitted successfully!");
-    }, 1500);
+    const checkExpiry = (dateStr, label) => {
+      if (!dateStr) return;
+      const expiryDate = new Date(dateStr);
+      if (expiryDate <= nextMonth && expiryDate >= today) {
+        alerts.push(`${label} is expiring soon (${dateStr})`);
+      } else if (expiryDate < today) {
+        alerts.push(`${label} has EXPIRED!`);
+      }
+    };
+
+    checkExpiry(assignedCar.insurance_expiry, "Insurance");
+    checkExpiry(assignedCar.rc_expiry, "RC Document");
+    
+    return alerts;
+  }, [assignedCar]);
+
+  const fetchData = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const headers = { Authorization: `Bearer ${token}` };
+      const [expRes, carRes] = await Promise.all([
+        axios.get(`${API_BASE}/expenses/my-history`, { headers }),
+        axios.get(`${API_BASE}/my-assigned-car`, { headers }).catch(() => ({ data: { success: false } }))
+      ]);
+      if (expRes.data.success) setExpenses(expRes.data.data);
+      if (carRes.data.success) {
+        const car = carRes.data.data;
+        setAssignedCar(car);
+        setCarFormData({
+          odometer: car.odometer,
+          insurance_number: car.insurance_number,
+          rc_number: car.rc_number,
+          insurance_expiry: car.insurance_expiry?.split('T')[0] || '',
+          rc_expiry: car.rc_expiry?.split('T')[0] || '',
+        });
+      }
+    } catch (err) { console.error(err); } finally { setLoading(false); }
   };
+
+  useEffect(() => { fetchData(); }, []);
+
+  const handleCarUpdate = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const data = new FormData();
+      data.append('_method', 'POST'); 
+      Object.keys(carFormData).forEach(key => data.append(key, carFormData[key]));
+      const res = await axios.post(`${API_BASE}/my-car-update/${assignedCar.id}`, data, {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data.success) {
+        setAssignedCar(res.data.data);
+        setIsEditingCar(false);
+        alert("Vehicle logs updated.");
+      }
+    } catch (err) { alert("Update failed."); }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const token = localStorage.getItem('access_token');
+    const data = new FormData();
+    Object.keys(formData).forEach(key => { if(formData[key]) data.append(key, formData[key]); });
+    try {
+      if (isEditingExpense) data.append('_method', 'POST');
+      const url = isEditingExpense ? `${API_BASE}/expenses/${formData.id}` : `${API_BASE}/expenses`;
+      const res = await axios.post(url, data, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.data.success) {
+        setIsModalOpen(false);
+        fetchData();
+      }
+    } catch (err) { alert("Action failed."); }
+  };
+
+  if (loading) return (
+    <div className="min-h-screen bg-gray-50 dark:bg-[#020617] flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#008B8B] border-t-transparent mx-auto mb-4"></div>
+        <p className="text-gray-600 dark:text-white font-black uppercase italic">Syncing...</p>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-20 animate-in fade-in duration-500">
+    <div className="max-w-7xl mx-auto space-y-8 pb-20 p-4 bg-gray-50 dark:bg-[#020617] min-h-screen text-gray-900 dark:text-white font-sans transition-colors duration-300">
       
-      {/* 1. Header & Stats */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white uppercase italic leading-none tracking-tighter">
-            My <span className="text-[#008B8B]">Expenses</span>
-          </h1>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2 italic">Personal Reimbursements • {instructorBranch}</p>
-        </div>
-        <div className="flex gap-4 bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
-           <div className="text-right border-r border-slate-200 dark:border-slate-800 pr-4">
-             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Pending</p>
-             <p className="text-xl font-black text-orange-500 mt-1">$120.45</p>
-           </div>
-           <div className="text-right pl-2">
-             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Reimbursed</p>
-             <p className="text-xl font-black text-emerald-500 mt-1">$80.20</p>
-           </div>
-        </div>
+      {/* HEADER */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+        <h1 className="text-3xl font-black uppercase italic tracking-tighter">
+          My <span className="text-[#008B8B]">Expenses</span>
+        </h1>
+        <button 
+          onClick={() => { setIsEditingExpense(false); setIsModalOpen(true); }} 
+          className="bg-[#008B8B] text-white px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:shadow-xl transition-all active:scale-95 flex items-center gap-2"
+        >
+          <Plus size={16} /> New Claim
+        </button>
       </div>
 
-      {/* 2. COMPLIANCE ALERT BAR */}
-      <div className={`p-4 rounded-2xl flex items-center justify-between border transition-all ${
-        complianceStatus.type === 'valid' 
-          ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/20 text-emerald-600' 
-          : 'bg-rose-50 dark:bg-rose-500/10 border-rose-100 dark:border-rose-500/20 text-rose-600 animate-pulse'
-      }`}>
-        <div className="flex items-center gap-3">
-            {complianceStatus.type === 'valid' ? <CheckCircle2 size={18}/> : <AlertTriangle size={18}/>}
-            <p className="text-[10px] font-black uppercase tracking-[0.15em]">{complianceStatus.message}</p>
-        </div>
-        {complianceStatus.type !== 'valid' && (
-            <button onClick={() => setIsEditingCar(true)} className="text-[9px] font-bold bg-rose-600 text-white px-3 py-1.5 rounded-lg uppercase shadow-lg shadow-rose-500/20 active:scale-95 transition-transform">Update Now</button>
-        )}
-      </div>
-
-      {/* 3. MY CAR MANAGEMENT SECTION */}
-      <section className="bg-white dark:bg-[#111827] text-slate-900 dark:text-white p-6 md:p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl transition-all duration-300 relative overflow-hidden group">
-        <Car className="absolute -right-10 -top-10 size-48 opacity-5 dark:opacity-10 group-hover:rotate-12 transition-transform duration-700 text-slate-900 dark:text-white" />
-        
-        <div className="relative z-10">
-          <div className="flex justify-between items-center mb-8">
-            <div className="flex items-center gap-3">
-              <div className="bg-[#008B8B] p-3 rounded-2xl shadow-lg text-white">
-                <ShieldCheck size={20} />
-              </div>
-              <div>
-                <h2 className="text-sm font-black uppercase tracking-widest leading-none italic">My Assigned Car</h2>
-                <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase mt-1 tracking-tighter">Asset ID: {assignedCar.id}</p>
-              </div>
-            </div>
-
-            {!isEditingCar ? (
-              <button onClick={() => setIsEditingCar(true)} className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 rounded-xl text-[10px] font-black text-slate-900 dark:text-white uppercase transition-all">
-                <Edit3 size={14} /> Update Logs
-              </button>
-            ) : (
-              <div className="flex gap-2">
-                <button onClick={() => setIsEditingCar(false)} className="px-4 py-2 text-[10px] font-black uppercase text-slate-400">Cancel</button>
-                <button onClick={handleCarUpdate} className="px-5 py-2.5 bg-[#008B8B] text-white rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95 transition-transform">Save Changes</button>
+      {/* VEHICLE SECTION WITH EXPIRY ALERTS */}
+      {assignedCar && (
+        <section className="bg-white dark:bg-[#0f172a] p-8 rounded-[2.5rem] border border-gray-200 dark:border-slate-800 relative overflow-hidden shadow-xl">
+          <Car className="absolute -right-10 -top-10 size-48 opacity-5 dark:opacity-10 text-gray-400 dark:text-white" />
+          
+          <div className="relative z-10 space-y-6">
+            {/* --- EXPIRY ALERT BANNER --- */}
+            {expiryAlerts.length > 0 && (
+              <div className="bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 p-4 rounded-2xl flex items-center gap-4 animate-pulse">
+                <div className="bg-rose-500 p-2 rounded-xl text-white shadow-lg shadow-rose-500/20">
+                  <Bell size={18}/>
+                </div>
+                <div className="flex-1">
+                  <p className="text-[10px] font-black uppercase text-rose-600 dark:text-rose-500 tracking-widest">Compliance Warning</p>
+                  <div className="flex flex-wrap gap-x-4">
+                    {expiryAlerts.map((msg, i) => (
+                      <span key={i} className="text-xs font-bold text-rose-700 dark:text-rose-200 italic">• {msg}</span>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
-          </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-6">
-            <div className="space-y-1">
-              <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase">Model</p>
-              <p className="text-sm font-black italic text-slate-900 dark:text-white">{assignedCar.model} <span className="opacity-30 ml-1">🔒</span></p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase">License Plate</p>
-              <p className="text-sm font-black italic text-slate-900 dark:text-white">{assignedCar.plate} <span className="opacity-30 ml-1">🔒</span></p>
-            </div>
-            
-            <EditableField isEditing={isEditingCar} label="Odometer" value={tempCarData.odometer} type="number" suffix="KM" onChange={(val) => setTempCarData({...tempCarData, odometer: val})} />
-            <EditableField isEditing={isEditingCar} label="Policy No." value={tempCarData.insurancePolicy} onChange={(val) => setTempCarData({...tempCarData, insurancePolicy: val})} />
-            <EditableField isEditing={isEditingCar} label="RC Number" value={tempCarData.rcNumber} onChange={(val) => setTempCarData({...tempCarData, rcNumber: val})} />
-           
-            <EditableField 
-                isEditing={isEditingCar} 
-                label="Ins. Expiry" 
-                value={tempCarData.insuranceExpiry} 
-                type="date" 
-                color={Math.ceil((new Date(tempCarData.insuranceExpiry) - new Date()) / (1000*60*60*24)) <= 30 ? "text-rose-500 font-black underline decoration-rose-500/50 decoration-2 underline-offset-4" : "text-emerald-500"} 
-                onChange={(val) => setTempCarData({...tempCarData, insuranceExpiry: val})} 
-            />
-            
-            <EditableField 
-                isEditing={isEditingCar} 
-                label="RC Expiry" 
-                value={tempCarData.rcExpiry} 
-                type="date" 
-                color={Math.ceil((new Date(tempCarData.rcExpiry) - new Date()) / (1000*60*60*24)) <= 30 ? "text-rose-500 font-black underline decoration-rose-500/50 decoration-2 underline-offset-4" : "text-emerald-500"} 
-                onChange={(val) => setTempCarData({...tempCarData, rcExpiry: val})} 
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* 4. TRANSACTION & HISTORY GRID */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <section className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl space-y-8 transition-colors">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-black text-[#008B8B] uppercase tracking-[0.2em] flex items-center gap-3">
-                  <Receipt size={18} /> Transaction Details
-                </h2>
-                <span className="text-[9px] font-black bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full text-slate-500 dark:text-slate-400 uppercase tracking-widest leading-none">{instructorName}</span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <ExpenseInput label="Date of Purchase" type="date" value={formData.date} onChange={(val) => setFormData({...formData, date: val})} />
-                <ExpenseSelect label="Category" options={['Fuel', 'Maintenance', 'Parking', 'Supplies']} value={formData.category} onChange={(val) => setFormData({...formData, category: val})} />
-                <ExpenseInput label="Merchant Name" placeholder="e.g. Petro-Canada" value={formData.merchant} onChange={(val) => setFormData({...formData, merchant: val})} />
-                <ExpenseSelect label="Vehicle Used" options={[`${assignedCar.model} (${assignedCar.id})`]} value={formData.vehicle} onChange={(val) => setFormData({...formData, vehicle: val})} />
-              </div>
-            </section>
-            
-            <section className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl space-y-8 transition-colors">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-                <div className="space-y-4">
-                  <label className="text-[10px] font-black text-[#008B8B] uppercase tracking-widest ml-1 flex items-center gap-2 italic">
-                    <Landmark size={14} /> Total Amount (CAD)
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-6 top-1/2 -translate-y-1/2 text-[#008B8B] font-black text-2xl">$</span>
-                    <input required type="number" step="0.01" className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-3xl pl-12 pr-6 py-6 text-3xl font-black text-slate-900 dark:text-white focus:ring-4 focus:ring-[#008B8B]/10 outline-none" placeholder="0.00" value={formData.totalAmount} onChange={(e) => setFormData({...formData, totalAmount: e.target.value})} />
-                  </div>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="bg-[#008B8B] p-3 rounded-2xl text-white shadow-lg">
+                  <ShieldCheck size={20} />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Evidence / Receipt</label>
-                  <div className={`relative h-32 rounded-[2rem] border-2 border-dashed transition-all flex flex-col items-center justify-center p-4 ${formData.receipt ? 'border-emerald-500 bg-emerald-500/5' : 'border-slate-200 dark:border-slate-800 hover:border-[#008B8B] hover:bg-[#008B8B]/5'}`}>
-                    <input required type="file" className="absolute inset-0 opacity-0 cursor-pointer z-10" onChange={(e) => setFormData({...formData, receipt: e.target.files[0]})} />
-                    <CloudUpload size={24} className="text-slate-400 mb-1" />
-                    <p className="text-[10px] font-black uppercase text-slate-400 italic truncate max-w-[150px]">{formData.receipt ? formData.receipt.name : "Click to Attach"}</p>
-                  </div>
-                </div>
+                <h2 className="text-sm font-black uppercase italic text-[#008B8B]">Vehicle Assets</h2>
               </div>
-              <button disabled={isSubmitting} className="w-full py-5 bg-[#008B8B] text-white rounded-[1.5rem] font-black text-xs uppercase tracking-[0.2em] shadow-xl hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50">
-                {isSubmitting ? "Submitting..." : "Submit Claim"}
-              </button>
-            </section>
-          </form>
-        </div>
+              {!isEditingCar ? (
+                <button 
+                  onClick={() => setIsEditingCar(true)} 
+                  className="flex items-center gap-2 px-5 py-2.5 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl text-[10px] font-black uppercase text-gray-700 dark:text-white hover:bg-gray-200 dark:hover:bg-white/10 transition-all"
+                >
+                  <Edit3 size={14} /> Update Logs
+                </button>
+              ) : (
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setIsEditingCar(false)} 
+                    className="px-4 py-2 text-[10px] font-black uppercase text-gray-500 dark:text-slate-500 hover:text-gray-700 dark:hover:text-slate-300 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleCarUpdate} 
+                    className="bg-[#008B8B] px-5 py-2.5 rounded-xl text-[10px] font-black uppercase text-white shadow-lg hover:shadow-xl transition-all"
+                  >
+                    <Save size={14} className="inline mr-1"/> Save
+                  </button>
+                </div>
+              )}
+            </div>
 
-        {/* 5. SIDEBAR: HISTORY */}
-        <div className="space-y-6">
-          <div className="bg-white dark:bg-[#111827] rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl overflow-hidden transition-colors">
-             <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-950/20">
-                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                  <History size={14} /> Claim History
-                </h3>
-             </div>
-             <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                <ClaimRow date="Feb 24" cat="Fuel" price="65.00" status="Approved" />
-                <ClaimRow date="Feb 22" cat="Service" price="120.45" status="Pending" />
-             </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+              <StaticField label="Model" value={assignedCar.car_name} locked />
+              <EditableField isEditing={isEditingCar} label="Odometer" value={carFormData.odometer} onChange={(v) => setCarFormData({...carFormData, odometer: v})} type="number" />
+              <EditableField isEditing={isEditingCar} label="Policy No" value={carFormData.insurance_number} onChange={(v) => setCarFormData({...carFormData, insurance_number: v})} />
+              <EditableField isEditing={isEditingCar} label="RC Number" value={carFormData.rc_number} onChange={(v) => setCarFormData({...carFormData, rc_number: v})} />
+              <EditableField isEditing={isEditingCar} label="Ins. Expiry" value={carFormData.insurance_expiry} onChange={(v) => setCarFormData({...carFormData, insurance_expiry: v})} type="date" color={expiryAlerts.some(m => m.includes("Insurance")) ? "text-rose-600 dark:text-rose-500 underline" : "text-gray-900 dark:text-white"} />
+              <EditableField isEditing={isEditingCar} label="RC Expiry" value={carFormData.rc_expiry} onChange={(v) => setCarFormData({...carFormData, rc_expiry: v})} type="date" color={expiryAlerts.some(m => m.includes("RC Document")) ? "text-rose-600 dark:text-rose-500 underline" : "text-gray-900 dark:text-white"} />
+            </div>
           </div>
-        </div>
+        </section>
+      )}
+
+      {/* EXPENSE TABLE */}
+      <div className="bg-white dark:bg-[#0f172a] rounded-[2.5rem] border border-gray-200 dark:border-slate-800 shadow-xl overflow-hidden">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="bg-gray-50 dark:bg-slate-950/50 italic">
+              <th className="p-6 text-[10px] font-black text-gray-500 dark:text-slate-500 uppercase">Category</th>
+              <th className="p-6 text-[10px] font-black text-gray-500 dark:text-slate-500 uppercase text-center">Amount</th>
+              <th className="p-6 text-[10px] font-black text-gray-500 dark:text-slate-500 uppercase text-center">Status</th>
+              <th className="p-6 text-[10px] font-black text-gray-500 dark:text-slate-500 uppercase text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+            {expenses.map((ex) => (
+              <tr key={ex.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                <td className="p-6 font-black uppercase text-xs italic text-gray-900 dark:text-white">{ex.category}</td>
+                <td className="p-6 text-center text-sm font-black text-gray-900 dark:text-white italic">${ex.amount}</td>
+                <td className="p-6 text-center">
+                  <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase ${
+                    ex.status === 'approved' 
+                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-500' 
+                      : 'bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-500'
+                  }`}>
+                    {ex.status}
+                  </span>
+                </td>
+                <td className="p-6 text-right">
+                  <button 
+                    onClick={() => setSelectedExpense(ex)} 
+                    className="p-2 text-gray-500 hover:text-[#008B8B] dark:text-slate-500 dark:hover:text-[#008B8B] transition-colors"
+                  >
+                    <Eye size={18} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
+
+      {/* VIEW MODAL WITH ADMIN REMARKS */}
+      {selectedExpense && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-sm animate-in zoom-in duration-200">
+          <div className="bg-white dark:bg-[#0f172a] w-full max-w-lg rounded-[3.5rem] border border-gray-200 dark:border-slate-800 shadow-2xl overflow-hidden">
+            <div className="p-8 bg-gray-50 dark:bg-slate-950/40 flex justify-between items-center border-b border-gray-200 dark:border-slate-800">
+              <h3 className="text-sm font-black uppercase italic text-[#008B8B]">Claim Detail View</h3>
+              <button onClick={() => setSelectedExpense(null)} className="text-gray-500 dark:text-white/60 hover:text-gray-700 dark:hover:text-white">
+                <X size={20}/>
+              </button>
+            </div>
+            <div className="p-8 space-y-6">
+              {selectedExpense.admin_remarks && (
+                <div className="p-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 rounded-2xl flex gap-3">
+                  <div className="bg-rose-500 p-2 rounded-xl text-white h-fit">
+                    <MessageSquare size={14}/>
+                  </div>
+                  <div>
+                    <p className="text-[8px] font-black text-rose-600 dark:text-rose-500 uppercase mb-1">Admin Feedback</p>
+                    <p className="text-xs font-bold text-rose-700 dark:text-rose-200 italic">"{selectedExpense.admin_remarks}"</p>
+                  </div>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-4 text-center">
+                 <DetailItem label="Status" value={selectedExpense.status} color={selectedExpense.status === 'approved' ? 'text-emerald-600 dark:text-emerald-500' : 'text-orange-600 dark:text-orange-500'}/>
+                 <DetailItem label="Total" value={`$${selectedExpense.amount}`}/>
+                 <DetailItem label="Category" value={selectedExpense.category}/>
+                 <DetailItem label="Method" value={selectedExpense.payment_method}/>
+              </div>
+              <div className="p-5 bg-gray-100 dark:bg-[#020617] border border-gray-200 dark:border-slate-800 rounded-2xl text-xs font-bold italic text-gray-900 dark:text-white">
+                 <p className="text-[8px] font-black text-[#008B8B] uppercase mb-1 not-italic">Description</p>
+                 {selectedExpense.description || 'No notes.'}
+              </div>
+              <div className="flex items-center justify-between p-4 bg-gray-100 dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800">
+                 <div className="flex items-center gap-2 text-[10px] font-black uppercase italic truncate w-40 text-gray-700 dark:text-white">
+                   <FileText size={14} className="text-[#008B8B]"/> Receipt
+                 </div>
+                 <a href={`http://localhost:8000/storage/${selectedExpense.receipt_path}`} target="_blank" className="text-[9px] font-black text-[#008B8B] uppercase underline hover:text-[#006666]">
+                   View Doc
+                 </a>
+              </div>
+              {selectedExpense.status === 'pending' && (
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-slate-800">
+                  <button 
+                    onClick={() => startEditExpense(selectedExpense)} 
+                    className="flex-1 py-4 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 rounded-2xl font-black text-[10px] uppercase text-gray-700 dark:text-white transition-colors"
+                  >
+                    <Edit3 size={14} className="inline mr-2"/> Edit
+                  </button>
+                  <button className="flex-1 py-4 bg-rose-100 dark:bg-rose-500/10 text-rose-600 dark:text-rose-500 hover:bg-rose-200 dark:hover:bg-rose-500/20 rounded-2xl font-black text-[10px] uppercase transition-colors">
+                    Delete
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD/EDIT MODAL */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-md">
+          <div className="bg-white dark:bg-[#0f172a] w-full max-w-2xl rounded-[3rem] border border-gray-200 dark:border-slate-800 p-8 space-y-6 shadow-2xl">
+            <h2 className="text-sm font-black text-[#008B8B] uppercase italic flex items-center gap-3">
+              <Plus size={20} /> {isEditingExpense ? "Resubmit Claim" : "New Reimbursement"}
+            </h2>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <ExpenseSelect label="Category" options={['Fuel', 'Maintenance', 'Parking']} value={formData.category} onChange={(v)=>setFormData({...formData, category:v})}/>
+                <ExpenseSelect label="Payment" options={['cash', 'online', 'card']} value={formData.payment_method} onChange={(v)=>setFormData({...formData, payment_method:v})}/>
+                <ExpenseInput label="Amount ($)" type="number" placeholder="0.00" value={formData.amount} onChange={(v)=>setFormData({...formData, amount:v})}/>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-500 dark:text-slate-500 uppercase italic">Receipt Doc</label>
+                  <div className="relative h-14 rounded-2xl border-2 border-dashed border-gray-300 dark:border-slate-800 bg-gray-50 dark:bg-transparent flex items-center justify-center text-gray-500 dark:text-slate-500 hover:border-[#008B8B] dark:hover:border-[#008B8B] transition-colors">
+                    <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e)=>setFormData({...formData, receipt: e.target.files[0]})}/>
+                    <CloudUpload size={16}/>
+                    <p className="ml-2 text-[8px] font-black uppercase italic">
+                      {formData.receipt ? formData.receipt.name : "Attach Image"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <textarea 
+                className="w-full bg-gray-50 dark:bg-[#020617] border border-gray-200 dark:border-slate-800 rounded-2xl p-5 text-sm font-bold min-h-[100px] outline-none italic text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/30 focus:ring-2 focus:ring-[#008B8B]/50 transition-all" 
+                placeholder="Reimbursement details..." 
+                value={formData.description} 
+                onChange={(e)=>setFormData({...formData, description:e.target.value})}
+              />
+              <button className="w-full py-5 bg-[#008B8B] text-white rounded-[1.5rem] font-black text-xs uppercase shadow-xl hover:shadow-2xl transition-all active:scale-95">
+                {isEditingExpense ? "Update Claim" : "Submit Claim"}
+              </button>
+              <button 
+                type="button" 
+                onClick={() => { setIsModalOpen(false); setIsEditingExpense(false); }} 
+                className="w-full text-gray-500 dark:text-slate-500 font-black uppercase text-[10px] hover:text-gray-700 dark:hover:text-slate-300 transition-colors"
+              >
+                Discard
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-// --- HELPER COMPONENTS ---
-
-const EditableField = ({ isEditing, label, value, onChange, type = "text", suffix = "", color = "" }) => (
+// --- HELPERS ---
+const StaticField = ({ label, value, locked }) => (
   <div className="space-y-1">
-    <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter">{label}</p>
+    <p className="text-[9px] font-black text-gray-500 dark:text-slate-500 uppercase italic leading-none">{label}</p>
+    <p className="text-[13px] font-black italic uppercase text-gray-900 dark:text-white">
+      {value || 'N/A'} {locked && <span className="opacity-20 ml-1 text-gray-400 dark:text-white/20">🔒</span>}
+    </p>
+  </div>
+);
+
+const EditableField = ({ isEditing, label, value, onChange, type = "text", color = "" }) => (
+  <div className="space-y-1">
+    <p className="text-[9px] font-black text-gray-500 dark:text-slate-400 uppercase italic leading-none">{label}</p>
     {isEditing ? (
       <input 
         type={type} 
-        className="bg-slate-100 dark:bg-white/10 border-none rounded-lg px-2 py-1 text-xs font-black w-full outline-none focus:ring-1 focus:ring-[#008B8B] text-slate-900 dark:text-white transition-all"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        className="bg-gray-100 dark:bg-white/10 border border-gray-300 dark:border-white/5 rounded-lg px-2 py-1 text-xs font-black w-full outline-none focus:ring-2 focus:ring-[#008B8B] text-gray-900 dark:text-white" 
+        value={value || ''} 
+        onChange={(e) => onChange(e.target.value)} 
       />
     ) : (
-      <p className={`text-sm font-black italic ${color || 'text-slate-900 dark:text-white'}`}>{value} {suffix}</p>
+      <p className={`text-[13px] font-black italic uppercase ${color || 'text-gray-900 dark:text-white'}`}>
+        {value || 'N/A'}
+      </p>
     )}
+  </div>
+);
+
+const DetailItem = ({ label, value, color }) => (
+  <div>
+    <p className="text-[9px] font-black text-gray-500 dark:text-slate-400 uppercase mb-1 tracking-widest italic">{label}</p>
+    <p className={`text-base font-black italic uppercase tracking-tighter ${color || 'text-gray-900 dark:text-white'}`}>{value}</p>
   </div>
 );
 
 const ExpenseInput = ({ label, type, placeholder, value, onChange }) => (
   <div className="space-y-1.5">
-    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">{label}</label>
-    <input required type={type} className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-[#008B8B]/20 outline-none transition-all" placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
+    <label className="text-[10px] font-black text-gray-500 dark:text-slate-500 uppercase tracking-widest italic">{label}</label>
+    <input 
+      required 
+      type={type} 
+      className="w-full bg-gray-50 dark:bg-[#020617] border border-gray-200 dark:border-slate-800 rounded-2xl px-5 py-4 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-[#008B8B]/50 transition-all uppercase placeholder-gray-400 dark:placeholder-white/30" 
+      placeholder={placeholder} 
+      value={value} 
+      onChange={(e)=>onChange(e.target.value)}
+    />
   </div>
 );
 
 const ExpenseSelect = ({ label, options, value, onChange }) => (
-  <div className="space-y-1.5 relative">
-    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">{label}</label>
-    <div className="relative group">
-      <select className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-[#008B8B]/20 outline-none appearance-none cursor-pointer transition-all" value={value} onChange={(e) => onChange(e.target.value)}>
-        {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-      </select>
-      <ChevronDown size={16} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-[#008B8B] transition-colors" />
-    </div>
-  </div>
-);
-
-const ClaimRow = ({ date, cat, price, status }) => (
-  <div className="p-6 flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-all cursor-pointer group">
-    <div>
-      <p className="text-xs font-black text-slate-900 dark:text-white uppercase italic tracking-tight group-hover:text-[#008B8B] transition-colors">{cat}</p>
-      <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase mt-0.5">{date}</p>
-    </div>
-    <div className="text-right">
-      <p className="text-sm font-black text-slate-900 dark:text-white italic">${price}</p>
-      <div className={`flex items-center justify-end gap-1 text-[8px] font-black uppercase mt-1 ${status === 'Approved' ? 'text-emerald-500' : 'text-orange-500'}`}>
-        {status === 'Approved' ? <CheckCircle2 size={10} /> : <Clock size={10} />}
-        {status}
-      </div>
-    </div>
+  <div className="space-y-1.5">
+    <label className="text-[10px] font-black text-gray-500 dark:text-slate-500 uppercase tracking-widest italic">{label}</label>
+    <select 
+      className="w-full bg-gray-50 dark:bg-[#020617] border border-gray-200 dark:border-slate-800 rounded-2xl px-5 py-4 text-sm font-bold text-gray-900 dark:text-white outline-none appearance-none uppercase focus:ring-2 focus:ring-[#008B8B]/50 transition-all" 
+      value={value} 
+      onChange={(e)=>onChange(e.target.value)}
+    >
+      {options.map(o => <option key={o} value={o}>{o}</option>)}
+    </select>
   </div>
 );
 
