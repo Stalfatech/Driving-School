@@ -1,117 +1,324 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { Loader2, X } from "lucide-react";
+import { X, Package, DollarSign, GraduationCap, Save, Zap, FileText, List, Plus, Trash2 } from "lucide-react";
+
+const API_BASE = "http://localhost:8000/api";
 
 const EditPackage = ({ pkg, onClose, onRefresh }) => {
-  // 1. Initialize state with the existing package data (Default Values)
   const [formData, setFormData] = useState({
-    package_name: pkg.package_name || "",
-    amount: pkg.base_amount || pkg.amount || "", // Handles both controller structures
-    license_class: pkg.license_class || "Class 5",
-    hours: pkg.hours || ""
+    package_name: "",
+    amount: "",
+    license_class: "",
+    hours: "",
+    description: "",
+    included_items: []
   });
-  const [submitting, setSubmitting] = useState(false);
+  const [newItem, setNewItem] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 2. Handle Update Submission
+  useEffect(() => {
+    if (pkg) {
+      setFormData({
+        package_name: pkg.package_name || "",
+        amount: pkg.base_amount || pkg.amount || "",
+        license_class: pkg.license_class || "",
+        hours: pkg.hours || "",
+        description: pkg.description || "",
+        included_items: Array.isArray(pkg.included_items) ? pkg.included_items : (pkg.included_items ? JSON.parse(pkg.included_items) : [])
+      });
+    }
+  }, [pkg]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitting(true);
-
+    if (!formData.package_name.trim()) {
+      alert("Please enter package name");
+      return;
+    }
+    if (!formData.amount || parseFloat(formData.amount) <= 0) {
+      alert("Please enter a valid price");
+      return;
+    }
+    if (!formData.hours || parseInt(formData.hours) <= 0) {
+      alert("Please enter valid hours");
+      return;
+    }
+    if (!formData.license_class.trim()) {
+      alert("Please enter license class");
+      return;
+    }
+    setIsSubmitting(true);
     try {
       const token = localStorage.getItem('access_token');
-      // Using the PUT route from your api.php: Route::put('/packages/{id}')
-      await axios.put(`http://127.0.0.1:8000/api/packages/${pkg.id}`, formData, {
+      const payload = {
+        ...formData,
+        amount: parseFloat(formData.amount),
+        hours: parseInt(formData.hours),
+        included_items: formData.included_items.filter(item => item.trim() !== "")
+      };
+      await axios.put(`${API_BASE}/packages/${pkg.id}`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
-      onRefresh(); // Trigger parent to re-fetch updated list
-      onClose();   // Close modal
+      onRefresh();
+      onClose();
     } catch (error) {
       console.error("Update error:", error.response?.data);
       alert(error.response?.data?.message || "Failed to update package");
     } finally {
-      setSubmitting(false);
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const addIncludedItem = () => {
+    if (newItem.trim() !== "") {
+      setFormData(prev => ({
+        ...prev,
+        included_items: [...prev.included_items, newItem.trim()]
+      }));
+      setNewItem("");
+    }
+  };
+
+  const removeIncludedItem = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      included_items: prev.included_items.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addIncludedItem();
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-md">
-      <div className="bg-white dark:bg-gray-900 w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/10">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-2 sm:p-4">
+      <div className="bg-white dark:bg-slate-950 w-full max-w-[95%] sm:max-w-2xl lg:max-w-6xl max-h-[95vh] sm:max-h-[90vh] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
         
-        {/* Header */}
-        <div className="bg-amber-500 p-8 text-white relative">
-          <h3 className="text-2xl font-black uppercase italic">Edit Package</h3>
-          <p className="text-amber-50 text-xs font-bold uppercase tracking-widest">Update pricing or curriculum</p>
-          <button onClick={onClose} className="absolute top-6 right-6 font-black hover:scale-110 transition">
+        {/* Header - Responsive */}
+        <div className="flex items-center justify-between px-4 sm:px-6 md:px-8 py-4 sm:py-5 md:py-6 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shrink-0">
+          <div>
+            <h2 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white">
+              Edit <span className="text-teal-600 dark:text-teal-400">Package</span>
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5 sm:mt-1">
+              Update package details, description, and included items
+            </p>
+          </div>
+          <button 
+            onClick={onClose} 
+            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 transition-colors"
+          >
             <X size={20} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-5">
-          {/* Package Name */}
-          <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Package Name</label>
-            <input 
-              type="text" 
-              required 
-              value={formData.package_name} 
-              onChange={(e) => setFormData({...formData, package_name: e.target.value})} 
-              className="w-full bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-amber-500 rounded-2xl px-5 py-3 outline-none transition-all dark:text-white font-bold" 
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            {/* Hours */}
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Total Hours</label>
+        {/* Form Content - Responsive */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 custom-scrollbar">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+            
+            {/* Package Name */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                <Package size={14} className="text-teal-500" />
+                Package Name *
+              </label>
               <input 
-                type="number" 
-                required 
-                value={formData.hours} 
-                onChange={(e) => setFormData({...formData, hours: e.target.value})} 
-                className="w-full bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-amber-500 rounded-2xl px-5 py-3 outline-none dark:text-white font-bold" 
+                type="text" 
+                name="package_name"
+                value={formData.package_name} 
+                onChange={handleChange}
+                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none text-sm font-medium text-slate-900 dark:text-white transition-all"
+                required
               />
             </div>
-            {/* Amount */}
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Base Price ($)</label>
+
+            {/* Hours & Price */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                  <Package size={14} className="text-teal-500" />
+                  Total Hours *
+                </label>
+                <input 
+                  type="number" 
+                  name="hours"
+                  min="1"
+                  step="1"
+                  value={formData.hours} 
+                  onChange={handleChange}
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none text-sm font-medium text-slate-900 dark:text-white transition-all"
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                  <DollarSign size={14} className="text-teal-500" />
+                  Base Price *
+                </label>
+                <input 
+                  type="number" 
+                  name="amount"
+                  step="0.01"
+                  min="0"
+                  value={formData.amount} 
+                  onChange={handleChange}
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none text-sm font-medium text-slate-900 dark:text-white transition-all"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* License Class */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                <GraduationCap size={14} className="text-teal-500" />
+                License Class *
+              </label>
               <input 
-                type="number" 
+                type="text"
+                name="license_class"
                 required 
-                value={formData.amount} 
-                onChange={(e) => setFormData({...formData, amount: e.target.value})} 
-                className="w-full bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-amber-500 rounded-2xl px-5 py-3 outline-none dark:text-white font-bold" 
+                value={formData.license_class} 
+                onChange={handleChange} 
+                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none text-sm font-medium text-slate-900 dark:text-white transition-all"
+                placeholder="e.g., Class 7, Class 5, Class 4, etc."
               />
             </div>
-          </div>
 
-          {/* License Class */}
-          <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">License Class</label>
-            <select 
-              value={formData.license_class} 
-              onChange={(e) => setFormData({...formData, license_class: e.target.value})} 
-              className="w-full bg-gray-50 dark:bg-gray-800 rounded-2xl px-4 py-3 outline-none dark:text-white border-2 border-transparent focus:border-amber-500 font-bold"
-            >
-              <option value="Class 7 L">Class 7 L</option>
-              <option value="Class 7 N">Class 7 N</option>
-              <option value="Class 5">Class 5</option>
-              <option value="Class 1">Class 1</option>
-            </select>
-          </div>
+            {/* Description */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                <FileText size={14} className="text-teal-500" />
+                Description
+              </label>
+              <textarea
+                name="description"
+                rows="3"
+                value={formData.description}
+                onChange={handleChange}
+                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none text-sm font-medium text-slate-900 dark:text-white transition-all resize-none"
+                placeholder="Describe the package, its benefits, target audience, etc."
+              />
+            </div>
 
-          {/* Buttons */}
-          <div className="flex gap-3 pt-4">
-            <button type="button" onClick={onClose} className="flex-1 py-4 font-black text-gray-400 hover:text-gray-600 transition-colors uppercase text-[10px] tracking-widest">Cancel</button>
-            <button 
-              type="submit" 
-              disabled={submitting}
-              className="flex-1 bg-amber-500 text-white rounded-2xl font-black shadow-lg shadow-amber-500/20 hover:opacity-90 transition-all uppercase text-[10px] tracking-widest flex items-center justify-center gap-2"
-            >
-              {submitting ? <Loader2 className="animate-spin" size={16} /> : "Update Changes"}
-            </button>
-          </div>
-        </form>
+            {/* What's Included - Dynamic List */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                <List size={14} className="text-teal-500" />
+                What's Included
+              </label>
+              <div className="space-y-2 sm:space-y-3">
+                {formData.included_items.map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <div className="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-300 break-words">
+                      {item}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeIncludedItem(idx)}
+                      className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors shrink-0"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+                <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2">
+                  <input
+                    type="text"
+                    value={newItem}
+                    onChange={(e) => setNewItem(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none text-sm font-medium text-slate-900 dark:text-white transition-all"
+                    placeholder="e.g., 10 hours in-car training"
+                  />
+                  <button
+                    type="button"
+                    onClick={addIncludedItem}
+                    disabled={!newItem.trim()}
+                    className="px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 whitespace-nowrap"
+                  >
+                    <Plus size={16} />
+                    Add
+                  </button>
+                </div>
+              </div>
+              <p className="text-[9px] sm:text-[10px] text-slate-500 mt-1">Press Enter or click Add to include each item</p>
+            </div>
+
+            {/* Preview Section - Responsive */}
+            {(formData.package_name || formData.amount || formData.hours || formData.description || formData.included_items.length > 0) && (
+              <div className="mt-4 p-4 sm:p-5 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-2 mb-3">
+                  <Zap size={14} className="text-teal-500" />
+                  <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-teal-600 dark:text-teal-400">Package Preview</span>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div>
+                      <p className="text-base sm:text-lg font-bold text-slate-800 dark:text-white break-words">{formData.package_name || '—'}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{formData.license_class} • {formData.hours || '0'} hours</p>
+                    </div>
+                    <p className="text-xl sm:text-2xl font-bold text-teal-600 dark:text-teal-400 whitespace-nowrap">
+                      ${formData.amount ? parseFloat(formData.amount).toFixed(2) : '0.00'}
+                    </p>
+                  </div>
+                  {formData.description && (
+                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed break-words">{formData.description}</p>
+                  )}
+                  {formData.included_items.length > 0 && (
+                    <div>
+                      <p className="text-[10px] sm:text-xs font-semibold text-slate-500 mb-2">What's Included:</p>
+                      <ul className="list-disc list-inside space-y-1">
+                        {formData.included_items.slice(0, 3).map((item, idx) => (
+                          <li key={idx} className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 break-words">{item}</li>
+                        ))}
+                        {formData.included_items.length > 3 && (
+                          <li className="text-xs sm:text-sm text-teal-500">+{formData.included_items.length - 3} more items</li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons - Responsive */}
+            <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4">
+              <button 
+                type="button" 
+                onClick={onClose} 
+                className="w-full sm:flex-1 px-6 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit" 
+                disabled={isSubmitting || !formData.package_name || !formData.amount || !formData.hours || !formData.license_class}
+                className="w-full sm:flex-1 px-6 py-2.5 rounded-lg bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 disabled:cursor-not-allowed text-white font-semibold text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-teal-500/20 hover:shadow-teal-500/30 hover:-translate-y-0.5 active:translate-y-0"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <Save size={16} />
+                    Update Package
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

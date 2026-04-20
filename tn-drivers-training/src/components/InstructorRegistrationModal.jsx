@@ -3,50 +3,41 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
   X, User, Mail, Phone, MapPin, BadgeCheck, 
-  Car, Globe, Briefcase, FileText, Save, Loader2, UploadCloud, CheckSquare, Camera 
+  Car, Globe, Briefcase, FileText, Save, Loader2, UploadCloud, CheckSquare
 } from 'lucide-react';
 
 const InstructorRegistrationModal = ({ isOpen, onClose, onRefresh }) => {
   const [loading, setLoading] = useState(false);
   const [locations, setLocations] = useState([]);
   const [availableCars, setAvailableCars] = useState([]);
-  const [qualifications, setQualifications] = useState([]);
-  const [previewUrl, setPreviewUrl] = useState(null);
-
-  const classOptions = [
-    "Class 5 (Car)", "Class 6 (Motorcycle)", "Class 1 (Commercial)", "Class 4 (Ambulance/Taxi)"
-  ];
-
-  const provinceOptions = [
-    "Alberta", "British Columbia", "Manitoba", "New Brunswick", 
-    "Newfoundland and Labrador", "Nova Scotia", "Ontario", 
-    "Prince Edward Island", "Quebec", "Saskatchewan"
-  ];
+  const [allCars, setAllCars] = useState([]); // Store all cars for filtering
+  const [assignedCarIds, setAssignedCarIds] = useState([]); // Store IDs of cars with instructors
 
   const [formData, setFormData] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
-    contact: '', 
+    phone: '',
     dob: '',
     language: 'English',
     country: 'Canada',
-    city: '', 
+    city: '',
     province: 'Ontario',
-    street_address: '',
-    postal_code: '', // Ensure this is initialized
-    assigned_location: '', 
-    emp_status: 'Full-time',
-    car_id: '',
-    licence_no: '',
-    inst_license_no: '',
-    licence_expiry: '',
+    streetAddress: '',
+    postalCode: '',
+    assignedLocation: '',
+    empStatus: 'Full-time',
+    carId: '',
+    driversLicense: '',
+    instructorLicense: '',
+    licenceExpiry: '',
+    qualifications: ''
   });
 
   const [files, setFiles] = useState({
-    profile_picture: null,
-    doc_criminal_cert: null,
-    doc_vulnerable_sector: null,
-    doc_driver_abstract: null
+    docCriminalCert: null,
+    docVulnerableSector: null,
+    docDriverAbstract: null
   });
 
   // Fetch Locations
@@ -58,68 +49,83 @@ const InstructorRegistrationModal = ({ isOpen, onClose, onRefresh }) => {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         setLocations(res.data.data);
-      } catch (err) { console.error("Error fetching locations", err); }
+      } catch (err) { 
+        console.error("Error fetching locations", err); 
+      }
     };
     if (isOpen) fetchLocations();
   }, [isOpen]);
 
-  // Fetch Cars based on Location
-  // useEffect(() => {
-  //   const fetchCarsByLocation = async () => {
-  //     if (!formData.assigned_location) { setAvailableCars([]); return; }
-  //     try {
-  //       const token = localStorage.getItem('access_token');
-  //       const res = await axios.get('http://127.0.0.1:8000/api/cars', {
-  //         headers: { 'Authorization': `Bearer ${token}` }
-  //       });
-  //       const filtered = res.data.data.filter(car => 
-  //           String(car.location_id) === String(formData.assigned_location)
-  //       );
-  //       setAvailableCars(filtered);
-  //     } catch (err) { console.error("Error fetching cars", err); }
-  //   };
-  //   fetchCarsByLocation();
-  // }, [formData.assigned_location]);
+  // Fetch all cars and instructors to determine which cars are assigned
   useEffect(() => {
-  const fetchCarsByLocation = async () => {
-    if (!formData.assigned_location) {
-      setAvailableCars([]);
-      return;
+    const fetchCarsAndInstructors = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        
+        // Fetch all cars
+        const carsRes = await axios.get('http://127.0.0.1:8000/api/cars', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const carsData = carsRes.data.data || [];
+        setAllCars(carsData);
+        
+        // Fetch all instructors to get assigned car IDs
+        const instructorsRes = await axios.get('http://127.0.0.1:8000/api/instructors', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const instructorsData = instructorsRes.data.data || [];
+        
+        // Extract car_ids that are already assigned to instructors
+        const assignedIds = instructorsData
+          .filter(instructor => instructor.car_id !== null)
+          .map(instructor => instructor.car_id);
+        
+        setAssignedCarIds(assignedIds);
+      } catch (err) {
+        console.error("Error fetching data", err);
+      }
+    };
+    
+    if (isOpen) {
+      fetchCarsAndInstructors();
     }
-    try {
-      // 1. Find the ID of the location that matches the selected name
-      const selectedLocation = locations.find(l => l.province_name === formData.assigned_location);
-      if (!selectedLocation) return;
+  }, [isOpen]);
 
-      const token = localStorage.getItem('access_token');
-      const res = await axios.get('http://127.0.0.1:8000/api/cars', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+  // Fetch Cars based on Location and filter out assigned ones
+  useEffect(() => {
+    const fetchUnassignedCarsByLocation = async () => {
+      if (!formData.assignedLocation) {
+        setAvailableCars([]);
+        return;
+      }
+      
+      try {
+        const selectedLocation = locations.find(l => l.province_name === formData.assignedLocation);
+        if (!selectedLocation) return;
 
-      // 2. Filter cars using the found ID
-      const filtered = res.data.data.filter(car => 
-          String(car.location_id) === String(selectedLocation.id)
-      );
-      setAvailableCars(filtered);
-    } catch (err) {
-      console.error("Error fetching cars", err);
-    }
-  };
-  fetchCarsByLocation();
-}, [formData.assigned_location, locations]); // Add locations to dependency array
+        // Filter cars by location and by not being assigned to any instructor
+        const filteredUnassigned = allCars.filter(car => {
+          const matchesLocation = String(car.location_id) === String(selectedLocation.id);
+          const isNotAssigned = !assignedCarIds.includes(car.id);
+          return matchesLocation && isNotAssigned;
+        });
+        
+        setAvailableCars(filteredUnassigned);
+      } catch (err) {
+        console.error("Error filtering cars", err);
+      }
+    };
+    
+    fetchUnassignedCarsByLocation();
+  }, [formData.assignedLocation, locations, allCars, assignedCarIds]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
-  
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    setFiles(prev => ({ ...prev, [e.target.name]: file }));
-    if (e.target.name === 'profile_picture' && file) {
-      setPreviewUrl(URL.createObjectURL(file));
-    }
+    setFiles(prev => ({ ...prev, [e.target.name]: e.target.files[0] }));
   };
 
   const handleSubmit = async (e) => {
@@ -128,29 +134,32 @@ const InstructorRegistrationModal = ({ isOpen, onClose, onRefresh }) => {
 
     const data = new FormData();
     
-    // Map form data and handle potential nulls
-    Object.keys(formData).forEach(key => {
-      let value = formData[key];
-      
-      // Fix for "Column cannot be null" error: send empty string if value is empty
-      if (value === null || value === undefined) value = '';
-
-      if (key === 'contact') {
-        data.append('phone', value);
-        data.append('password', value); // Default password as phone
-        data.append('password_confirmation', value);
-      } else {
-        data.append(key, value);
-      }
-    });
-
-    data.append('qualifications_to_teach', qualifications.join(', '));
+    // Combine first and last name
+    const fullName = `${formData.firstName} ${formData.lastName}`;
+    data.append('name', fullName);
+    data.append('email', formData.email);
+    data.append('phone', formData.phone);
+    data.append('password', formData.phone);
+    data.append('password_confirmation', formData.phone);
+    data.append('dob', formData.dob);
+    data.append('language', formData.language);
+    data.append('country', formData.country); // Added country field
+    data.append('city', formData.city);
+    data.append('province', formData.province);
+    data.append('street_address', formData.streetAddress);
+    data.append('postal_code', formData.postalCode);
+    data.append('assigned_location', formData.assignedLocation);
+    data.append('emp_status', formData.empStatus);
+    data.append('car_id', formData.carId);
+    data.append('licence_no', formData.driversLicense);
+    data.append('inst_license_no', formData.instructorLicense);
+    data.append('licence_expiry', formData.licenceExpiry);
+    data.append('qualifications_to_teach', formData.qualifications);
 
     // Append Files
-    if (files.profile_picture) data.append('profile_picture', files.profile_picture);
-    if (files.doc_criminal_cert) data.append('doc_criminal_cert', files.doc_criminal_cert);
-    if (files.doc_vulnerable_sector) data.append('doc_vulnerable_sector', files.doc_vulnerable_sector);
-    if (files.doc_driver_abstract) data.append('doc_driver_abstract', files.doc_driver_abstract);
+    if (files.docCriminalCert) data.append('doc_criminal_cert', files.docCriminalCert);
+    if (files.docVulnerableSector) data.append('doc_vulnerable_sector', files.docVulnerableSector);
+    if (files.docDriverAbstract) data.append('doc_driver_abstract', files.docDriverAbstract);
 
     try {
       const token = localStorage.getItem('access_token');
@@ -162,164 +171,483 @@ const InstructorRegistrationModal = ({ isOpen, onClose, onRefresh }) => {
         }
       });
       alert("Instructor Registered Successfully!");
-      onRefresh();
+      if (onRefresh) onRefresh();
       onClose();
     } catch (err) {
       console.error("Backend Error:", err.response?.data);
       alert(`Error: ${err.response?.data?.message || "Check required fields."}`);
-    } finally { setLoading(false); }
+    } finally { 
+      setLoading(false); 
+    }
+  };
+
+  const handleReset = () => {
+    setFormData({
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      dob: '',
+      language: 'English',
+      country: 'Canada',
+      city: '',
+      province: 'Ontario',
+      streetAddress: '',
+      postalCode: '',
+      assignedLocation: '',
+      empStatus: 'Full-time',
+      carId: '',
+      driversLicense: '',
+      instructorLicense: '',
+      licenceExpiry: '',
+      qualifications: ''
+    });
+    setFiles({
+      docCriminalCert: null,
+      docVulnerableSector: null,
+      docDriverAbstract: null
+    });
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 backdrop-blur-md p-4">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-5xl max-h-[95vh] overflow-y-auto rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4">
+      <div className="bg-white dark:bg-slate-950 w-full max-w-7xl h-full max-h-[90vh] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
         
-        <div className="sticky top-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center z-20">
+        {/* Header */}
+        <div className="flex items-center justify-between px-8 py-6 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shrink-0">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Register New Instructor</h2>
-            <p className="text-sm text-slate-500 font-medium">Please fill in all address details including Postal Code.</p>
+            <h2 className="text-xl font-bold text-slate-800 dark:text-white">
+              Register New <span className="text-teal-600 dark:text-teal-400">Instructor</span>
+            </h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              Fill in the details to add a new instructor to the system
+            </p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-400"><X size={24} /></button>
+          <button 
+            onClick={onClose} 
+            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 transition-colors"
+          >
+            <X size={20} />
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-10">
+        {/* Form Content */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6 custom-scrollbar">
           
-          <section className="flex flex-col items-center justify-center gap-4">
-            <div className="relative group">
-              <div className="size-28 rounded-full bg-slate-100 dark:bg-slate-800 border-4 border-white dark:border-slate-900 shadow-lg overflow-hidden flex items-center justify-center">
-                {previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : <User size={40} className="text-slate-300" />}
+          {/* Personal Information */}
+          <section className="bg-slate-50 dark:bg-slate-800/30 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
+            <h3 className="text-sm font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider mb-5 flex items-center gap-2">
+              <div className="w-1 h-5 bg-teal-500 rounded-full"></div>
+              Personal Information
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">First Name</label>
+                <input 
+                  name="firstName" 
+                  type="text" 
+                  placeholder="e.g., Jean" 
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                  required 
+                />
               </div>
-              <label className="absolute bottom-0 right-0 p-2 bg-teal text-white rounded-full cursor-pointer hover:scale-110 transition-transform shadow-md">
-                <Camera size={16} />
-                <input type="file" name="profile_picture" className="hidden" accept="image/*" onChange={handleFileChange} />
-              </label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Last Name</label>
+                <input 
+                  name="lastName" 
+                  type="text" 
+                  placeholder="e.g., Dupont" 
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                  required 
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Date of Birth</label>
+                <input 
+                  name="dob" 
+                  type="date" 
+                  value={formData.dob}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                  required 
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Email Address</label>
+                <input 
+                  name="email" 
+                  type="email" 
+                  placeholder="jean.dupont@example.ca" 
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                  required 
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Phone Number</label>
+                <input 
+                  name="phone" 
+                  type="tel" 
+                  placeholder="+1 (709) 555-0123" 
+                  value={formData.phone}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                  required 
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Primary Language</label>
+                <select 
+                  name="language" 
+                  value={formData.language}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                >
+                  <option>English</option>
+                  <option>French</option>
+                  <option>Bilingual (EN/FR)</option>
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5 md:col-span-3">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Assigned Location</label>
+                <select 
+                  name="assignedLocation" 
+                  value={formData.assignedLocation}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                  required
+                >
+                  <option value="">Select a location</option>
+                  {locations.map(loc => (
+                    <option key={loc.id} value={loc.province_name}>
+                      {loc.province_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <span className="text-[10px] font-bold uppercase text-slate-400">Profile Photo</span>
           </section>
 
-          <section className="space-y-4">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-teal flex items-center gap-2"><User size={14}/> Identity & Auth</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <InputField label="Full Name" name="name" value={formData.name} onChange={handleChange} />
-              <InputField label="Email" name="email" type="email" value={formData.email} onChange={handleChange} />
-              <InputField label="Phone" name="contact" value={formData.contact} onChange={handleChange} placeholder="709-000-0000" />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <SelectField 
-                label="Assigned Location" 
-                name="assigned_location" 
-                value={formData.assigned_location} 
-                onChange={handleChange} 
-                options={locations.map(loc => ({ label: loc.province_name, value: loc.province_name  }))} 
-              />
-              <SelectField 
-                label="Assign Car" 
-                name="car_id" 
-                value={formData.car_id} 
-                onChange={handleChange} 
-                disabled={!formData.assigned_location}
-                options={availableCars.map(car => ({ 
-                    label: `${car.car_name || 'Car'} (${car.number_plate || car.id})`, 
-                    value: car.id 
-                }))} 
-              />
-              <InputField label="Primary Language" name="language" value={formData.language} onChange={handleChange} />
-            </div>
-          </section>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-             <div className="space-y-4">
-                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-teal flex items-center gap-2"><BadgeCheck size={14}/> Credentials</h3>
-                <div className="grid grid-cols-1 gap-4">
-                  <InputField label="Driver's Licence #" name="licence_no" value={formData.licence_no} onChange={handleChange} />
-                  <InputField label="Instructor Licence #" name="inst_license_no" value={formData.inst_license_no} onChange={handleChange} />
-                  <InputField label="Licence Expiry" name="licence_expiry" type="date" value={formData.licence_expiry} onChange={handleChange} />
-                </div>
-             </div>
-             <div className="space-y-4">
-                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-teal flex items-center gap-2"><MapPin size={14}/> Residency & DOB</h3>
-                <div className="grid grid-cols-1 gap-4">
-                  <InputField label="Date of Birth" name="dob" type="date" value={formData.dob} onChange={handleChange} />
-                  <div className="grid grid-cols-2 gap-4">
-                    <InputField label="City" name="city" value={formData.city} onChange={handleChange} />
-                    <SelectField label="Province" name="province" value={formData.province} onChange={handleChange} options={provinceOptions} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <InputField label="Street Address" name="street_address" value={formData.street_address} onChange={handleChange} />
-                    <InputField label="Postal Code" name="postal_code" value={formData.postal_code} onChange={handleChange} placeholder="A1B 2C3" />
-                  </div>
-                </div>
-             </div>
-          </div>
-
-          {/* Qualifications & Files sections remain the same... */}
-          <section className="space-y-4">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-teal flex items-center gap-2"><CheckSquare size={14}/> Qualified to Teach</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50 dark:bg-slate-800/40 p-6 rounded-2xl">
-              {classOptions.map(cls => (
-                <label key={cls} className="flex items-center gap-3 cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    checked={qualifications.includes(cls)}
-                    onChange={() => setQualifications(prev => prev.includes(cls) ? prev.filter(i => i !== cls) : [...prev, cls])}
-                    className="size-5 rounded border-slate-300 text-teal focus:ring-teal"
-                  />
-                  <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">{cls}</span>
+          {/* Residential Address */}
+          <section className="bg-slate-50 dark:bg-slate-800/30 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
+            <h3 className="text-sm font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider mb-5 flex items-center gap-2">
+              <div className="w-1 h-5 bg-teal-500 rounded-full"></div>
+              Residential Address
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+              <div className="md:col-span-2 flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Street Address</label>
+                <input 
+                  name="streetAddress" 
+                  type="text" 
+                  placeholder="123 Maple Leaf Ave" 
+                  value={formData.streetAddress}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">City</label>
+                <input 
+                  name="city" 
+                  type="text" 
+                  placeholder="St. John's" 
+                  value={formData.city}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Province</label>
+                <input 
+                  type="text" 
+                  name="province" 
+                  value={formData.province}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Postal Code</label>
+                <input 
+                  name="postalCode" 
+                  type="text" 
+                  placeholder="A1B 2C3" 
+                  value={formData.postalCode}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                />
+              </div>
+              {/* Country Field - Added here */}
+              <div className=" flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                  <Globe size={14} className="text-teal-500" /> Country
                 </label>
-              ))}
+                <input 
+                  name="country" 
+                  type="text" 
+                  placeholder="e.g., Canada, USA, United Kingdom" 
+                  value={formData.country}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                  required
+                />
+                <p className="text-xs text-slate-500 mt-1">Enter the country where the instructor resides</p>
+              </div>
             </div>
           </section>
 
-          <section className="space-y-4">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-teal flex items-center gap-2"><FileText size={14}/> Compliance Files</h3>
+          {/* Vehicle Assignment */}
+          <section className="bg-slate-50 dark:bg-slate-800/30 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
+            <h3 className="text-sm font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider mb-5 flex items-center gap-2">
+              <div className="w-1 h-5 bg-teal-500 rounded-full"></div>
+              Vehicle Assignment
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                  <Car size={14} className="text-teal-500" /> Assign Vehicle
+                </label>
+                <select 
+                  name="carId" 
+                  value={formData.carId}
+                  onChange={handleChange}
+                  disabled={!formData.assignedLocation}
+                  className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="">Select a vehicle</option>
+                  {availableCars.length === 0 && formData.assignedLocation ? (
+                    <option value="" disabled>No unassigned vehicles available at this location</option>
+                  ) : (
+                    availableCars.map(car => (
+                      <option key={car.id} value={car.id}>
+                        {car.car_name || 'Car'} ({car.number_plate || 'No Plate'})
+                      </option>
+                    ))
+                  )}
+                </select>
+                {!formData.assignedLocation && (
+                  <p className="text-xs text-amber-600 mt-1">Please select a location first</p>
+                )}
+                {formData.assignedLocation && availableCars.length === 0 && (
+                  <p className="text-xs text-red-500 mt-1">No unassigned vehicles available at this location</p>
+                )}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                  <Briefcase size={14} className="text-teal-500" /> Employment Status
+                </label>
+                <div className="flex gap-6 mt-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      name="empStatus" 
+                      value="Full-time" 
+                      checked={formData.empStatus === 'Full-time'}
+                      onChange={handleChange}
+                      className="text-teal-600 focus:ring-teal-500/20" 
+                    /> Full-time
+                  </label>
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      name="empStatus" 
+                      value="Contractor" 
+                      checked={formData.empStatus === 'Contractor'}
+                      onChange={handleChange}
+                      className="text-teal-600 focus:ring-teal-500/20" 
+                    /> Contractor
+                  </label>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Licensing & Certifications */}
+          <section className="bg-slate-50 dark:bg-slate-800/30 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
+            <h3 className="text-sm font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider mb-5 flex items-center gap-2">
+              <div className="w-1 h-5 bg-teal-500 rounded-full"></div>
+              Licensing & Certifications
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Driver's License #</label>
+                <input 
+                  name="driversLicense" 
+                  type="text" 
+                  placeholder="e.g., D1234-56789-01234" 
+                  value={formData.driversLicense}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                  required 
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Instructor License #</label>
+                <input 
+                  name="instructorLicense" 
+                  type="text" 
+                  placeholder="e.g., INST-88291-AB" 
+                  value={formData.instructorLicense}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                  required 
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">License Expiry Date</label>
+                <input 
+                  name="licenceExpiry" 
+                  type="date" 
+                  value={formData.licenceExpiry}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+                  required 
+                />
+              </div>
+            </div>
+            
+            {/* Qualifications as Text Field */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                <CheckSquare size={14} className="text-teal-500" /> Qualified to Teach (Separate with commas)
+              </label>
+              <input 
+                name="qualifications" 
+                type="text" 
+                placeholder="e.g., Class 5 (Car), Class 6 (Motorcycle), Class 1 (Commercial)" 
+                value={formData.qualifications}
+                onChange={handleChange}
+                className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
+              />
+              <p className="text-xs text-slate-500 mt-1">Enter all classes the instructor is qualified to teach, separated by commas</p>
+            </div>
+          </section>
+
+          {/* Compliance & Documentation */}
+          <section className="bg-slate-50 dark:bg-slate-800/30 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
+            <h3 className="text-sm font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider mb-5 flex items-center gap-2">
+              <div className="w-1 h-5 bg-teal-500 rounded-full"></div>
+              Compliance & Documentation
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <FileUploader label="Criminal Cert" name="doc_criminal_cert" onChange={handleFileChange} file={files.doc_criminal_cert} />
-              <FileUploader label="Vulnerable Sector" name="doc_vulnerable_sector" onChange={handleFileChange} file={files.doc_vulnerable_sector} />
-              <FileUploader label="Driver Abstract" name="doc_driver_abstract" onChange={handleFileChange} file={files.doc_driver_abstract} />
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">Criminal Record Check</label>
+                <div className="relative group">
+                  <input 
+                    type="file" 
+                    name="docCriminalCert" 
+                    onChange={handleFileChange}
+                    className="absolute inset-0 opacity-0 cursor-pointer z-10" 
+                  />
+                  <div className={`border-2 border-dashed rounded-xl p-4 text-center transition-all cursor-pointer ${
+                    files.docCriminalCert 
+                      ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/20' 
+                      : 'border-slate-200 dark:border-slate-700 group-hover:border-teal-500 group-hover:bg-teal-50 dark:group-hover:bg-teal-950/20'
+                  }`}>
+                    <UploadCloud className={`mx-auto mb-2 transition-colors ${
+                      files.docCriminalCert ? 'text-teal-500' : 'text-slate-400 group-hover:text-teal-500'
+                    }`} size={24} />
+                    <p className="text-xs font-medium text-slate-600 dark:text-slate-400 truncate">
+                      {files.docCriminalCert ? files.docCriminalCert.name : "Upload Document"}
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-1">PDF, JPG, PNG (Max 5MB)</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">Vulnerable Sector Search</label>
+                <div className="relative group">
+                  <input 
+                    type="file" 
+                    name="docVulnerableSector" 
+                    onChange={handleFileChange}
+                    className="absolute inset-0 opacity-0 cursor-pointer z-10" 
+                  />
+                  <div className={`border-2 border-dashed rounded-xl p-4 text-center transition-all cursor-pointer ${
+                    files.docVulnerableSector 
+                      ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/20' 
+                      : 'border-slate-200 dark:border-slate-700 group-hover:border-teal-500 group-hover:bg-teal-50 dark:group-hover:bg-teal-950/20'
+                  }`}>
+                    <UploadCloud className={`mx-auto mb-2 transition-colors ${
+                      files.docVulnerableSector ? 'text-teal-500' : 'text-slate-400 group-hover:text-teal-500'
+                    }`} size={24} />
+                    <p className="text-xs font-medium text-slate-600 dark:text-slate-400 truncate">
+                      {files.docVulnerableSector ? files.docVulnerableSector.name : "Upload Document"}
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-1">PDF, JPG, PNG (Max 5MB)</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">Driver Abstract (3-Year)</label>
+                <div className="relative group">
+                  <input 
+                    type="file" 
+                    name="docDriverAbstract" 
+                    onChange={handleFileChange}
+                    className="absolute inset-0 opacity-0 cursor-pointer z-10" 
+                  />
+                  <div className={`border-2 border-dashed rounded-xl p-4 text-center transition-all cursor-pointer ${
+                    files.docDriverAbstract 
+                      ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/20' 
+                      : 'border-slate-200 dark:border-slate-700 group-hover:border-teal-500 group-hover:bg-teal-50 dark:group-hover:bg-teal-950/20'
+                  }`}>
+                    <UploadCloud className={`mx-auto mb-2 transition-colors ${
+                      files.docDriverAbstract ? 'text-teal-500' : 'text-slate-400 group-hover:text-teal-500'
+                    }`} size={24} />
+                    <p className="text-xs font-medium text-slate-600 dark:text-slate-400 truncate">
+                      {files.docDriverAbstract ? files.docDriverAbstract.name : "Upload Document"}
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-1">PDF, JPG, PNG (Max 5MB)</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
-
-          <div className="flex justify-end gap-4 pt-8 border-t border-slate-100 dark:border-slate-800">
-            <button type="button" onClick={onClose} className="px-8 py-4 rounded-2xl font-bold text-slate-400 hover:text-slate-600">Cancel</button>
-            <button type="submit" disabled={loading} className="bg-teal text-white px-12 py-4 rounded-2xl font-bold shadow-xl shadow-teal/20 flex items-center gap-3 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
-              {loading ? <Loader2 className="animate-spin" /> : <Save />} Confirm Registration
-            </button>
-          </div>
         </form>
+
+        {/* Footer Buttons */}
+        <div className="flex items-center justify-end gap-3 px-8 py-5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0">
+          <button 
+            type="button" 
+            onClick={handleReset} 
+            className="px-6 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+          >
+            Reset Form
+          </button>
+          <button 
+            type="submit" 
+            onClick={handleSubmit}
+            disabled={loading}
+            className="px-8 py-2.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-semibold text-sm shadow-lg shadow-teal-500/20 hover:shadow-teal-500/30 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {loading ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                Registering...
+              </>
+            ) : (
+              <>
+                <Save size={16} />
+                Complete Registration
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
 };
-
-/* --- SHARED UI COMPONENTS (InputField, SelectField, FileUploader) stay as they were --- */
-const InputField = ({ label, type = "text", name, value, onChange, placeholder }) => (
-  <div className="flex flex-col gap-2">
-    <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider ml-1">{label}</label>
-    <input type={type} name={name} value={value} onChange={onChange} placeholder={placeholder} required className="w-full px-5 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 outline-none focus:border-teal text-sm font-semibold dark:text-white transition-all" />
-  </div>
-);
-
-const SelectField = ({ label, name, value, onChange, options, disabled }) => (
-  <div className="flex flex-col gap-2">
-    <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider ml-1">{label}</label>
-    <select name={name} value={value} onChange={onChange} required disabled={disabled} className={`w-full px-5 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 outline-none focus:border-teal text-sm font-semibold dark:text-white appearance-none ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
-      <option value="">Select...</option>
-      {options.map(o => <option key={o.value || o} value={o.value || o}>{o.label || o}</option>)}
-    </select>
-  </div>
-);
-
-const FileUploader = ({ label, name, onChange, file }) => (
-  <div className="relative group h-32">
-    <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-2 block">{label}</label>
-    <div className={`h-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-2 transition-all ${file ? 'border-teal bg-teal/5' : 'border-slate-200 dark:border-slate-700 group-hover:border-teal/50'}`}>
-      <UploadCloud className={file ? "text-teal" : "text-slate-300"} size={24} />
-      <span className="text-[10px] font-bold text-slate-500 px-4 text-center truncate w-full">{file ? file.name : "Upload File"}</span>
-      <input type="file" name={name} onChange={onChange} className="absolute inset-0 opacity-0 cursor-pointer" />
-    </div>
-  </div>
-);
 
 export default InstructorRegistrationModal;

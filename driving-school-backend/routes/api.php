@@ -14,6 +14,14 @@ use App\Http\Controllers\Api\SchedulingController;
 use App\Http\Controllers\Api\InstructorAssignmentController;
 use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\InstructorDashboardController;
+use App\Http\Controllers\Api\StudentDashboardController;
+use App\Http\Controllers\Api\Student\TestEvaluationController;
+use App\Http\Controllers\Api\StudentPackageController;
+use App\Http\Controllers\Api\StudentProfileController;
+
+
 
 /*
 |--------------------------------------------------------------------------
@@ -92,6 +100,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/packages/{id}', [PackageController::class, 'show']); // To get data for Edit form
         Route::put('/packages/{id}', [PackageController::class, 'update']);
         Route::delete('/packages/{id}', [PackageController::class, 'destroy']);
+        // In Case of restore(but not included in ui)
+        Route::post('/packages/{id}/restore', [PackageController::class, 'restore']);
 
         // Location Management
        Route::post('/locations', [LocationController::class, 'store']);     // Create
@@ -101,25 +111,32 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // instruuctor management by admi 
 
-        Route::post('/instructors', [InstructorController::class, 'store']);             // Create
+        Route::post('/instructors', [InstructorController::class, 'store']);    
+        Route::get('/instructors/by-location', [InstructorController::class, 'getInstructorsByLocation']);
+        Route::get('/instructors/export', [InstructorController::class, 'export']);
         Route::put('/instructors/update/{id}', [InstructorController::class, 'update']); // Admin Update
         Route::delete('/instructors/{id}', [InstructorController::class, 'destroy']);      // Admin Delete
         Route::get('/instructors', [InstructorController::class, 'index']);  
         Route::get('/instructors/{id}', [InstructorController::class, 'show']);    
              // List All
 
-        //student 
-        Route::get('/students/by-duty', [StudentController::class, 'getStudentsByInstructor']);
-        Route::get('/students/onboarding-data', [StudentController::class, 'getOnboardingData']);
-        Route::get('/students', [StudentController::class, 'index']);
-        Route::get('/students/{id}', [StudentController::class, 'show']);
-        Route::post('/students/{id}/activate', [StudentController::class, 'activateStudent']);
-        Route::delete('/students/{id}', [StudentController::class, 'destroy']);
-        //reassign student
-        Route::post('/students/{id}/reassign', [StudentController::class, 'reassignInstructor']);
-        //status change for student 
+             
+             //student 
+             Route::get('/students/by-duty', [StudentController::class, 'getStudentsByInstructor']);
+             Route::get('/students/onboarding-data', [StudentController::class, 'getOnboardingData']);
+             Route::get('/students', [StudentController::class, 'index']);
+             Route::get('/students/{id}', [StudentController::class, 'show']);
+             Route::post('/students/{id}/activate', [StudentController::class, 'activateStudent']);
+             Route::delete('/students/{id}', [StudentController::class, 'destroy']);
+             //reassign student
+             // Add this line with your other student routes (around line 100-110 in your routes file)
+             Route::put('/students/{id}', [StudentController::class, 'update']);
+             Route::post('/students/{id}/reassign', [StudentController::class, 'reassignInstructor']);
+             
 
-        
+             //apptove new pavk
+            Route::post('/package-requests/{id}/approve', [StudentController::class, 'approvePackageRequest']);
+            Route::post('/package-requests/{id}/reject', [StudentController::class, 'rejectPackageRequest']);
 
 
         //student page 
@@ -177,6 +194,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admin/all-duties', [SchedulingController::class, 'index']); 
     Route::put('/admin/duty/{id}', [SchedulingController::class, 'updateDuty']); // NEW
     Route::delete('/admin/duty/{id}', [SchedulingController::class, 'destroyDuty']);
+    Route::post('/admin/duty/{id}/restore', [SchedulingController::class, 'restoreDuty']);
 
     //assign to a duty 
         Route::post('/assignments/book', [InstructorAssignmentController::class, 'store']);
@@ -192,10 +210,17 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // --- Expense Management ---
         Route::get('/admin/expenses/all', [ExpenseController::class, 'index']); // View all claims
+        Route::get('/admin/expenses/export', [ExpenseController::class, 'export']);
         Route::post('/admin/expenses/{id}/status', [ExpenseController::class, 'updateStatus']); // Approve/Reject
         Route::get('/admin/expenses/stats', [ExpenseController::class, 'getStats']);
 
 
+
+        //dashboard data apis
+        Route::get('/dashboard', [DashboardController::class, 'index']);
+    Route::get('/dashboard/stats', [DashboardController::class, 'getQuickStats']);
+    Route::get('/dashboard/charts', [DashboardController::class, 'getChartData']);
+    
     });
 
 
@@ -213,6 +238,7 @@ Route::middleware('instructor')->group(function () {
     Route::get('/instructor/manifest', [InstructorAssignmentController::class, 'getActiveManifest']);
 
     Route::post('/instructor/assignments/{id}/attendance', [InstructorAssignmentController::class, 'markAttendance']);
+    Route::delete('/instructor/assignments/{id}/attendance', [InstructorAssignmentController::class, 'deleteAttendance']);
 
     Route::post('/instructor/assignments/{id}/evaluation', [InstructorAssignmentController::class, 'addEvaluation']);
 
@@ -233,6 +259,35 @@ Route::middleware('instructor')->group(function () {
         Route::post('/expenses/{id}', [ExpenseController::class, 'update']); // Logic handles 'pending' only
         Route::delete('/expenses/{id}', [ExpenseController::class, 'destroy']);
 
-});
+        
+        
+        // dashboard
+        Route::get('/instructor/dashboard', [InstructorDashboardController::class, 'index']);
+        Route::get('/instructor/dashboard/metrics', [InstructorDashboardController::class, 'getMetrics']);
+        Route::get('/instructor/dashboard/sessions', [InstructorDashboardController::class, 'getSessions']);
+        Route::get('/instructor/dashboard/car', [InstructorDashboardController::class, 'getAssignedCar']);
+        });
 
+
+//student section
+
+
+
+Route::middleware('student')->group(function () {
+    Route::get('/student/dashboard', [StudentDashboardController::class, 'dashboard']);
+    Route::post('/student/reschedule', [StudentDashboardController::class, 'requestReschedule']);
+    Route::get('/student/test-evaluations', [TestEvaluationController::class, 'getEvaluations']);
+    Route::get('/student/test-evaluations/statistics', [TestEvaluationController::class, 'getStatistics']);
+    Route::get('/student/test-evaluations/attendance', [TestEvaluationController::class, 'getAttendanceHistory']);
+    Route::get('/student/test-evaluations/{id}', [TestEvaluationController::class, 'getEvaluation']);
+    Route::post('/student/test-evaluations/{id}/response', [TestEvaluationController::class, 'submitResponse']);
+    Route::prefix('student')->group(function () {
+        Route::get('/packages/active', [StudentPackageController::class, 'activePackage']);
+        Route::get('/packages/history', [StudentPackageController::class, 'history']);
+        Route::get('/packages/available', [StudentPackageController::class, 'available']);
+        Route::post('/packages/request', [StudentPackageController::class, 'requestPackage']); 
+        Route::get('/profile', [StudentProfileController::class, 'show']);
+        Route::put('/profile', [StudentProfileController::class, 'update']);
+   });
+});
 });

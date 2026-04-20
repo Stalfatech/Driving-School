@@ -4,197 +4,242 @@ import {
   LineChart, Line, PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   XAxis, YAxis, CartesianGrid, BarChart, Bar, LabelList
 } from "recharts";
-import { Users, UserCheck, GraduationCap, DollarSign, Loader2, TrendingUp, TrendingDown, Package } from "lucide-react";
+import { 
+  Users, UserCheck, GraduationCap, DollarSign, FileText, Clock,ScanEye, Eye, 
+  Package, TrendingUp, TrendingDown, ChevronDown, ChevronUp, 
+  MapPin, Calendar, Star, Award, ArrowUpRight, Sparkles,
+  ShieldCheck, Zap, Globe, Target, Briefcase, BookOpen, Loader2, AlertTriangle
+} from "lucide-react";
 import axios from "axios";
+import ApplicationReviewModal from "../components/ApplicationReviewModal";
 
 const API_URL = "http://localhost:8000/api";
 
+// ================= STYLES & CONSTANTS =================
+const PACKAGE_COLORS = ["#2A9D8F", "#6366F1", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899"];
+
+const tooltipStyle = {
+  backgroundColor: '#1e293b',
+  border: 'none',
+  borderRadius: '12px',
+  fontSize: '13px',
+  color: '#ffffff',
+  padding: '8px 12px',
+  boxShadow: '0 8px 20px rgba(0,0,0,0.2)'
+};
+
+// ================= HELPER FUNCTIONS =================
+const formatCurrency = (value) => {
+  if (!value && value !== 0) return '$0';
+  if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+  if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
+  return `$${value}`;
+};
+
+// Calculate age from date of birth
+const calculateAge = (dob) => {
+  if (!dob) return 18; // Default age if not provided
+  const birthDate = new Date(dob);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+};
+
+const getPriority = (age) => {
+  if (age < 18) return { 
+    label: "Normal", 
+    color: "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800",
+    width: "w-35"
+  };
+  return { 
+    label: "High Priority", 
+    color: "bg-gradient-to-r from-red-100 to-rose-100 dark:from-red-900/40 dark:to-rose-900/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800",
+    width: "w-35"
+  };
+};
+
+// Get initials from name
+const getInitials = (name) => {
+  if (!name) return '?';
+  if (typeof name === 'string') {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  }
+  return '?';
+};
+
+// ================= MOBILE APPLICATION CARD =================
+const MobileApplicationCard = ({ app, priority, onView }) => {
+  return (
+    <div className="group p-5 border-b border-slate-100 dark:border-slate-800 transition-all duration-300 hover:bg-gradient-to-r hover:from-teal-50/50 hover:to-transparent dark:hover:from-teal-900/20">
+  <div className="flex flex-col items-center text-center">
+    {/* Avatar */}
+    <div className="relative mb-3">
+      <div className="absolute inset-0 bg-gradient-to-r from-teal-400 to-emerald-400 rounded-full blur-md opacity-0 group-hover:opacity-50 transition-opacity duration-300"></div>
+      <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-teal-100 to-teal-200 dark:from-teal-900/50 dark:to-teal-800/30 text-teal-700 dark:text-teal-300 flex items-center justify-center font-bold text-xl shadow-md group-hover:scale-110 transition-transform duration-300">
+        {getInitials(app.name)}
+      </div>
+    </div>
+    
+    {/* Name */}
+    <h3 className="font-bold text-slate-800 dark:text-white group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors text-base mb-1">
+      {app.name}
+    </h3>
+    
+    {/* Date */}
+    <div className="flex items-center justify-center gap-2 mb-2">
+      <Calendar size={12} className="text-slate-400 group-hover:text-teal-500 transition-colors" />
+      <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
+        {app.registered_at}
+      </span>
+    </div>
+    
+    {/* Package */}
+    <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-3">
+      {app.package || 'No Package Found'}
+    </p>
+    
+    {/* Priority Badge */}
+    <div className="mb-4">
+      <span className={`px-3 py-1.5 rounded-full text-xs font-mono font-bold uppercase ${priority.color}`}>
+        {priority.label}
+      </span>
+    </div>
+    
+    {/* Action Button */}
+    <button
+      onClick={onView}
+      className="w-full py-2.5 bg-gradient-to-r from-teal-600 to-emerald-600 text-white rounded-xl text-sm font-semibold transition-all duration-300 hover:shadow-lg hover:shadow-teal-500/25 hover:scale-105 flex items-center justify-center gap-2"
+    >
+      <Eye size={14} />
+      Review Application
+    </button>
+  </div>
+</div>
+  );
+};
+
+// ================= KPI CARD WITH HOVER EFFECTS =================
+const KpiCard = ({ title, value, growth, icon, subtitle }) => {
+  const isPositiveGrowth = growth && growth > 0;
+  
+  return (
+    <div className="group relative overflow-hidden bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-md transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 hover:scale-105">
+      <div className="absolute inset-0 bg-gradient-to-br from-teal-50 via-transparent to-emerald-50 dark:from-teal-900/20 dark:via-transparent dark:to-emerald-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+      <div className="absolute -inset-1 bg-gradient-to-r from-teal-200/30 to-emerald-200/30 dark:from-teal-500/10 dark:to-emerald-500/10 blur-xl group-hover:blur-2xl transition-all duration-500"></div>
+      
+      <div className="relative z-10 text-center">
+        <div className="flex items-center justify-center mb-2 sm:mb-3">
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-teal-400 to-emerald-400 rounded-xl blur-md opacity-0 group-hover:opacity-50 transition-opacity duration-300"></div>
+            <div className="relative w-9 h-9 sm:w-11 sm:h-11 flex items-center justify-center rounded-xl bg-gradient-to-br from-teal-100 to-teal-200 dark:from-teal-900/60 dark:to-teal-800/40 text-teal-600 dark:text-teal-400 shadow-md group-hover:scale-110 group-hover:shadow-lg transition-all duration-300">
+              {React.cloneElement(icon, { size: 18, strokeWidth: 1.8 })}
+            </div>
+          </div>
+        </div>
+        
+        <p className="text-xs sm:text-sm font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
+          {title}
+        </p>
+        <h3 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white group-hover:bg-gradient-to-r group-hover:from-teal-600 group-hover:to-emerald-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">
+          {value}
+        </h3>
+        
+        {growth && (
+          <div className={`flex items-center justify-center gap-1 mt-2 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[0.55rem] sm:text-xs font-bold font-mono transition-all duration-300 group-hover:scale-105 ${
+            isPositiveGrowth 
+              ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 group-hover:bg-green-200 dark:group-hover:bg-green-900/60'
+              : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 group-hover:bg-red-200 dark:group-hover:bg-red-900/60'
+          }`}>
+            {isPositiveGrowth ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+            {isPositiveGrowth ? '+' : ''}{growth}%
+          </div>
+        )}
+        
+        {subtitle && (
+          <p className="text-[0.55rem] sm:text-xs text-slate-400 dark:text-slate-500 mt-2 font-mono group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">
+            {subtitle}
+          </p>
+        )}
+      </div>
+      
+      <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+        <Sparkles size={10} className="text-teal-400/60" />
+      </div>
+    </div>
+  );
+};
+
+// ================= CHART CARD WITH HOVER EFFECTS =================
+const ChartCard = ({ title, icon, children }) => {
+  return (
+    <div className="group relative overflow-hidden bg-white dark:bg-slate-900 p-4 sm:p-5 md:p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-md transition-all duration-500 hover:shadow-2xl hover:-translate-y-1">
+      <div className="absolute inset-0 bg-gradient-to-br from-teal-50/30 via-transparent to-emerald-50/30 dark:from-teal-900/10 dark:via-transparent dark:to-emerald-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+      <div className="relative z-10">
+        <div className="flex items-center gap-2 mb-3 sm:mb-5">
+          <div className="p-1 sm:p-1.5 rounded-lg bg-teal-100 dark:bg-teal-900/30 group-hover:bg-teal-200 dark:group-hover:bg-teal-900/50 transition-all duration-300 group-hover:scale-110">
+            {React.cloneElement(icon, { size: 12, className: "text-teal-600 group-hover:text-teal-500 transition-colors" })}
+          </div>
+          <h2 className="text-[0.65rem] sm:text-sm font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
+            {title}
+          </h2>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+// ================= MAIN DASHBOARD COMPONENT =================
 const Dashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedStudentId, setSelectedStudentId] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const token = localStorage.getItem('access_token');
 
-  // Fetch real dashboard data
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      
-      console.log("Fetching dashboard data...");
-      
-      // Fetch all required data in parallel
-      const [
-        studentsRes,
-        instructorsRes,
-        paymentsRes,
-        packagesRes,
-        expenseStatsRes,
-        allPaymentsRes
-      ] = await Promise.all([
-        axios.get(`${API_URL}/students`, { headers: { Authorization: `Bearer ${token}` } }).catch(err => {
-          console.error("Error fetching students:", err);
-          return { data: { data: [] } };
-        }),
-        axios.get(`${API_URL}/instructors`, { headers: { Authorization: `Bearer ${token}` } }).catch(err => {
-          console.error("Error fetching instructors:", err);
-          return { data: { data: [] } };
-        }),
-        axios.get(`${API_URL}/payments/stats`, { headers: { Authorization: `Bearer ${token}` } }).catch(err => {
-          console.error("Error fetching payments stats:", err);
-          return { data: { data: { total_revenue: 0, monthly: [] } } };
-        }),
-        axios.get(`${API_URL}/packages`, { headers: { Authorization: `Bearer ${token}` } }).catch(err => {
-          console.error("Error fetching packages:", err);
-          return { data: { data: [] } };
-        }),
-        axios.get(`${API_URL}/admin/expenses/stats`, { headers: { Authorization: `Bearer ${token}` } }).catch(err => {
-          console.error("Error fetching expense stats:", err);
-          return { data: { data: { total_approved: 0, monthly: [] } } };
-        }),
-        axios.get(`${API_URL}/payments`, { headers: { Authorization: `Bearer ${token}` } }).catch(err => {
-          console.error("Error fetching all payments:", err);
-          return { data: { data: [] } };
-        })
-      ]);
+      const response = await axios.get(`${API_URL}/dashboard`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
-      // Process students data
-      const students = studentsRes.data?.data || studentsRes.data || [];
-      const activeStudents = students.filter(s => s.user?.status === 'active').length;
-      
-      // Process instructors data
-      const instructors = instructorsRes.data?.data || instructorsRes.data || [];
-      
-      // Process packages data
-      const packages = packagesRes.data?.data || packagesRes.data || [];
-      
-      // Process payments stats
-      const paymentsStats = paymentsRes.data?.data || { total_revenue: 0, monthly: [] };
-      const totalRevenue = paymentsStats.total_revenue || 0;
-      
-      // Get all payments for monthly breakdown
-      const allPayments = allPaymentsRes.data?.data || allPaymentsRes.data || [];
-      const successfulPayments = allPayments.filter(p => p.status === 'succeeded');
-      
-      // Process expense stats (only approved expenses)
-      const expenseStats = expenseStatsRes.data?.data || { total_approved: 0, monthly: [] };
-      const totalApprovedExpenses = expenseStats.total_approved || 0;
-      const monthlyExpenses = expenseStats.monthly || [];
-      
-      // Create monthly revenue data from actual payments
-      const months = [];
-      const now = new Date();
-      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      
-      // Generate last 6 months
-      for (let i = 5; i >= 0; i--) {
-        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const monthIndex = date.getMonth();
-        const year = date.getFullYear();
-        const month = monthNames[monthIndex];
+      if (response.data.success) {
+        const dashboardData = response.data.data;
         
-        // Calculate revenue for this month from successful payments
-        const monthRevenue = successfulPayments
-          .filter(p => {
-            const pDate = new Date(p.created_at);
-            return pDate.getMonth() === monthIndex && pDate.getFullYear() === year;
-          })
-          .reduce((sum, p) => sum + (p.amount || 0), 0);
-        
-        // Find expense for this month
-        const expenseItem = monthlyExpenses.find(e => e.month === month);
-        
-        months.push({
-          month,
-          revenue: monthRevenue,
-          expenses: expenseItem?.amount || 0
-        });
+        const formattedData = {
+          summary: {
+            total_students: dashboardData.summary?.total_students || 0,
+            active_students: dashboardData.summary?.active_students || 0,
+            total_instructors: dashboardData.summary?.total_instructors || 0,
+            total_revenue: dashboardData.summary?.total_revenue || 0,
+            total_expenses: dashboardData.summary?.total_expenses || 0,
+            net_income: dashboardData.summary?.net_income || 0,
+          },
+          monthly_financials: Array.isArray(dashboardData.monthly_financials) 
+            ? dashboardData.monthly_financials
+            : [],
+          package_popularity: Array.isArray(dashboardData.package_popularity)
+            ? dashboardData.package_popularity
+            : [],
+          location_distribution: Array.isArray(dashboardData.location_distribution)
+            ? dashboardData.location_distribution
+            : [],
+          recent_registrations: Array.isArray(dashboardData.recent_registrations)
+            ? dashboardData.recent_registrations
+            : [],
+        };
+
+        setData(formattedData);
+      } else {
+        setError("API returned unsuccessful response");
       }
-
-      // Process region distribution (students by location)
-      const regionMap = {};
-      students.forEach(s => {
-        let location = 'Unknown';
-        if (s.location?.name) location = s.location.name;
-        else if (s.location?.province_name) location = s.location.province_name;
-        else if (s.province_name_text) location = s.province_name_text;
-        else if (s.province) {
-          // Try to find location name
-          const loc = studentsRes.data?.locations?.find(l => l.id === s.province);
-          location = loc?.name || loc?.province_name || `Location ${s.province}`;
-        }
-        
-        regionMap[location] = (regionMap[location] || 0) + 1;
-      });
-      
-      const regionDistribution = Object.entries(regionMap)
-        .map(([region, count]) => ({ region, students: count }))
-        .sort((a, b) => b.students - a.students)
-        .slice(0, 5);
-
-      // Calculate package popularity
-      const packageCounts = {};
-      students.forEach(s => {
-        const packageName = s.package?.package_name || 'No Package';
-        packageCounts[packageName] = (packageCounts[packageName] || 0) + 1;
-      });
-
-      const packagePopularity = Object.entries(packageCounts)
-        .map(([name, count]) => ({ 
-          name: name.length > 15 ? name.substring(0, 12) + '...' : name, 
-          students: count 
-        }))
-        .sort((a, b) => b.students - a.students)
-        .slice(0, 5); // Top 5 packages
-
-      // Calculate package revenue
-      const packageRevenue = {};
-      successfulPayments.forEach(p => {
-        const packageName = p.enrolment?.package?.package_name || 'Unknown';
-        packageRevenue[packageName] = (packageRevenue[packageName] || 0) + (p.amount || 0);
-      });
-
-      const packageRevenueData = Object.entries(packageRevenue)
-        .map(([name, amount]) => ({ 
-          name: name.length > 15 ? name.substring(0, 12) + '...' : name, 
-          revenue: amount 
-        }))
-        .sort((a, b) => b.revenue - a.revenue)
-        .slice(0, 5);
-
-      // Recent activity - get the most recent student registrations
-      const recentActivity = students
-        .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
-        .slice(0, 5)
-        .map(s => ({
-          id: s.id,
-          name: s.user?.name || 'Unknown',
-          initials: (s.user?.name || 'U').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
-          status: s.user?.status || 'pending',
-          phase: s.package?.package_name || 'Not Enrolled',
-          date: s.created_at ? new Date(s.created_at).toLocaleDateString() : 'N/A'
-        }));
-
-      const dashboardData = {
-        summary: {
-          totalStudents: students.length,
-          activeStudents,
-          instructors: instructors.length,
-          revenue: totalRevenue,
-          expenses: totalApprovedExpenses,
-          netIncome: totalRevenue - totalApprovedExpenses
-        },
-        financialHealth: months,
-        packagePopularity,
-        packageRevenue: packageRevenueData,
-        regionDistribution,
-        recentActivity,
-        packages: packages
-      };
-
-      console.log("Final dashboard data:", dashboardData);
-      setData(dashboardData);
-
     } catch (err) {
       console.error("Error fetching dashboard data:", err);
       setError("Failed to load dashboard data");
@@ -207,12 +252,19 @@ const Dashboard = () => {
     fetchDashboardData();
   }, []);
 
+  const handleViewApplication = (app) => {
+    console.log("Opening modal for student:", app);
+    // Make sure we're passing the correct ID
+    setSelectedStudentId(app.id);
+    setIsModalOpen(true);
+  };
+
   if (loading) {
     return (
-      <div className="w-full min-h-screen p-4 sm:p-6 bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950">
         <div className="text-center">
-          <Loader2 className="animate-spin text-indigo-600 mx-auto mb-4" size={48} />
-          <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Loading dashboard data...</p>
+          <Loader2 className="animate-spin text-teal-500 mx-auto mb-4" size={48} />
+          <p className="text-sm font-semibold uppercase tracking-wider text-slate-500">Loading Dashboard...</p>
         </div>
       </div>
     );
@@ -220,13 +272,11 @@ const Dashboard = () => {
 
   if (error) {
     return (
-      <div className="w-full min-h-screen p-4 sm:p-6 bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950">
         <div className="text-center">
-          <p className="text-red-500 font-bold mb-4">{error}</p>
-          <button 
-            onClick={fetchDashboardData}
-            className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold"
-          >
+          <AlertTriangle className="text-red-500 mx-auto mb-4" size={48} />
+          <p className="text-sm font-medium text-red-600 mb-4">{error}</p>
+          <button onClick={fetchDashboardData} className="px-6 py-2 bg-teal-500 text-white rounded-lg text-sm font-medium hover:bg-teal-600 transition-all">
             Try Again
           </button>
         </div>
@@ -236,256 +286,342 @@ const Dashboard = () => {
 
   if (!data) return null;
 
-  const PACKAGE_COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
-
-  // Format currency for display
-  const formatCurrency = (value) => {
-    if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-    if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
-    return `$${value}`;
-  };
+  const monthlyFinancials = data.monthly_financials || [];
+  const packagePopularity = data.package_popularity || [];
+  const locationDistribution = data.location_distribution || [];
+  const recentApplications = data.recent_registrations || [];
 
   return (
-    <div className="w-full min-h-screen p-4 sm:p-6 bg-gray-50 dark:bg-gray-950 transition-colors font-sans">
-      <div className="max-w-7xl mx-auto space-y-6 md:space-y-10">
-
-        {/* ================= HEADER ================= */}
-        <header className="text-center lg:text-left space-y-1">
-          <h1 className="text-2xl md:text-4xl font-black text-gray-800 dark:text-white tracking-tight uppercase italic">
-            School <span className="text-indigo-600">Overview</span>
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400 font-bold text-[10px] md:text-xs uppercase tracking-widest mt-1">
-            Real-time visibility into school health.
-          </p>
-        </header>
-
-        {/* KPI GRID */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8 justify-items-center">
-          <KpiCard title="Total Students" value={data.summary.totalStudents} icon={<Users />} />
-          <KpiCard title="Active Students" value={data.summary.activeStudents} icon={<UserCheck />} />
-          <KpiCard title="Instructors" value={data.summary.instructors} icon={<GraduationCap />} />
-          <KpiCard
-            title="Total Revenue"
-            value={formatCurrency(data.summary.revenue)}
-            icon={<DollarSign />}
-          />
-        </div>
-
-        {/* CHARTS */}
-        <div className="space-y-6">
-
-          {/* Financial Line Chart - Revenue vs Expenses */}
-          <div className="bg-white dark:bg-gray-900 p-6 md:p-10 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
-            <h2 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-6 text-center lg:text-left">
-              Revenue vs Expenses (Last 6 Months)
-            </h2>
-            <div className="h-62.5 md:h-87.5 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data.financialHealth}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
-                  <XAxis dataKey="month" axisLine={false} tickLine={false} />
-                  <YAxis axisLine={false} tickLine={false} />
-                  <Tooltip 
-                    formatter={(value) => [`$${value.toLocaleString()}`, undefined]}
-                    contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }}
-                  />
-                  <Line type="monotone" dataKey="revenue" stroke="#22c55e" strokeWidth={4} dot={{ r: 4 }} name="Revenue" />
-                  <Line type="monotone" dataKey="expenses" stroke="#ef4444" strokeWidth={2} strokeDasharray="4 4" dot={false} name="Expenses" />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex flex-wrap justify-center gap-6 mt-4">
-              <div className="flex items-center gap-2">
-                <TrendingUp size={14} className="text-green-500" />
-                <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                  Net Profit: <span className="font-bold text-green-600">{formatCurrency(data.summary.netIncome)}</span>
-                </span>
+    <>
+      <div className="w-full min-h-screen p-3 sm:p-4 md:p-6 lg:p-8 bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 transition-colors overflow-x-hidden">
+        <div className="mx-auto space-y-4 sm:space-y-6 md:space-y-8">
+          
+          {/* ================= HEADER ================= */}
+          <header className="rounded-2xl bg-gradient-to-r from-teal-600/10 via-emerald-600/5 to-teal-600/10 dark:from-teal-500/5 dark:via-emerald-500/5 p-4 sm:p-6 md:p-8 transition-all duration-300 hover:shadow-xl hover:scale-[1.01]">
+            <div className="text-center lg:text-left">
+              <div className="flex items-center justify-center lg:justify-start gap-2 sm:gap-3 mb-2">
+                <ShieldCheck className="text-teal-500 transition-all duration-300 hover:scale-110 hover:rotate-12" size={24} />
+                <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight">
+                  <span className="text-slate-800 dark:text-white">Admin</span>
+                  <span className="text-teal-600 dark:text-teal-400 ml-2 bg-gradient-to-r from-teal-600 to-emerald-600 bg-clip-text text-transparent">Dashboard</span>
+                </h1>
               </div>
-              <div className="flex items-center gap-2">
-                <TrendingDown size={14} className="text-red-500" />
-                <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                  Expenses: <span className="font-bold text-red-600">{formatCurrency(data.summary.expenses)}</span>
-                </span>
-              </div>
+              <p className="text-xs sm:text-sm md:text-base font-mono text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center justify-center lg:justify-start gap-2">
+                <Zap size={12} className="text-teal-500 transition-all duration-300 hover:scale-110" />
+                Real-time visibility into school operations
+              </p>
             </div>
+          </header>
+
+          {/* ================= KPI GRID ================= */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+            <KpiCard 
+              title="Total Students" 
+              value={data.summary?.total_students?.toLocaleString() || 0} 
+              icon={<Users />} 
+            />
+            <KpiCard 
+              title="Active Students" 
+              value={data.summary?.active_students?.toLocaleString() || 0} 
+              icon={<UserCheck />} 
+            />
+            <KpiCard 
+              title="Instructors" 
+              value={data.summary?.total_instructors || 0} 
+              icon={<GraduationCap />} 
+            />
+            <KpiCard
+              title="Revenue"
+              value={formatCurrency(data.summary?.total_revenue || 0)}
+              icon={<DollarSign />}
+            />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-10">
+          {/* ================= CHARTS SECTION ================= */}
+          <div className="space-y-4 sm:space-y-6">
+            
+            {/* Financial Line Chart */}
+            <ChartCard title="Financial Health (Revenue vs Expenses)" icon={<TrendingUp />}>
+              <div className="h-48 sm:h-56 md:h-64 lg:h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={monthlyFinancials}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
+                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b', fontWeight: 500 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(v) => formatCurrency(v)} />
+                    <Tooltip 
+                      formatter={(value) => [formatCurrency(value), undefined]}
+                      contentStyle={tooltipStyle}
+                    />
+                    <Line type="monotone" dataKey="revenue" stroke="#2A9D8F" strokeWidth={2.5} dot={{ r: 3, fill: "#2A9D8F" }} name="Revenue" />
+                    <Line type="monotone" dataKey="expenses" stroke="#EF4444" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 2, fill: "#EF4444" }} name="Expenses" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex flex-wrap justify-center gap-3 sm:gap-6 mt-4 sm:mt-5 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-900/20 transition-all duration-300 hover:scale-105 hover:bg-teal-100 dark:hover:bg-teal-900/40">
+                  <TrendingUp size={10} className="text-teal-500" />
+                  <span className="text-[0.6rem] sm:text-sm font-semibold text-slate-600 dark:text-slate-300">
+                    Net Profit: <span className="font-bold text-teal-600">{formatCurrency(data.summary?.net_income || 0)}</span>
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 rounded-full bg-red-50 dark:bg-red-900/20 transition-all duration-300 hover:scale-105 hover:bg-red-100 dark:hover:bg-red-900/40">
+                  <TrendingDown size={10} className="text-red-500" />
+                  <span className="text-[0.6rem] sm:text-sm font-semibold text-slate-600 dark:text-slate-300">
+                    Expenses: <span className="font-bold text-red-600">{formatCurrency(data.summary?.total_expenses || 0)}</span>
+                  </span>
+                </div>
+              </div>
+            </ChartCard>
 
-            {/* Pie Chart - Package Popularity */}
-            <div className="bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm flex flex-col items-center">
-              <div className="flex items-center gap-2 mb-6">
-                <Package size={18} className="text-indigo-600" />
-                <h2 className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                  Package Popularity
-                </h2>
-              </div>
-              <div className="h-55 w-full">
-                {data.packagePopularity.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie 
-                        data={data.packagePopularity} 
-                        innerRadius={50} 
-                        outerRadius={80} 
-                        paddingAngle={4} 
-                        dataKey="students"
-                        label={({ name, percent }) => percent > 0.05 ? `${name} (${(percent * 100).toFixed(0)}%)` : ''}
-                      >
-                        {data.packagePopularity.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={PACKAGE_COLORS[index % PACKAGE_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value) => [value, 'Students']} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-full flex items-center justify-center">
-                    <p className="text-gray-400 text-sm">No package data available</p>
-                  </div>
-                )}
-              </div>
+            {/* Two column charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 md:gap-6">
               
-              {/* Legend Indicators */}
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-4">
-                {data.packagePopularity.map((pkg, index) => (
-                  <div key={pkg.name} className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: PACKAGE_COLORS[index % PACKAGE_COLORS.length] }}></div>
-                    <span className="text-[9px] font-medium text-gray-600 dark:text-gray-300">
-                      {pkg.name}: {pkg.students}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Bar Chart - Students by Location */}
-            <div className="bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm flex flex-col items-center">
-              <h2 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-8 text-center">
-                Students by Location
-              </h2>
-              <div className="h-55 w-full">
-                {data.regionDistribution.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={data.regionDistribution} layout="vertical">
-                      <XAxis type="number" hide />
-                      <YAxis 
-                        dataKey="region" 
-                        type="category" 
-                        axisLine={false} 
-                        tickLine={false} 
-                        width={80} 
-                        tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 'bold' }} 
-                      />
-                      <Tooltip 
-                        cursor={{ fill: 'transparent' }}
-                        formatter={(value) => [value, 'Students']}
-                        contentStyle={{ 
-                          backgroundColor: '#1f2937', 
-                          border: 'none', 
-                          borderRadius: '12px', 
-                          color: '#fff',
-                          fontSize: '12px' 
-                        }}
-                      />
-                      <Bar dataKey="students" fill="#6366f1" radius={[0, 10, 10, 0]}>
-                        <LabelList 
-                          dataKey="students" 
-                          position="right" 
-                          fill="#94a3b8" 
-                          style={{ fontSize: '10px', fontWeight: 'bold' }}
-                        />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-full flex items-center justify-center">
-                    <p className="text-gray-400 text-sm">No location data available</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-    
-
-        {/* RECENT STUDENT REGISTRATIONS */}
-        <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 overflow-hidden shadow-sm">
-          <div className="p-6 sm:p-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left">
-            <h2 className="text-xl font-black text-gray-800 dark:text-white uppercase tracking-tighter">
-              Recent Registrations
-            </h2>
-            <Link
-              to="/admin/students/list"
-              className="px-6 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all"
-            >
-              View All Students
-            </Link>
-          </div>
-
-          <div className="w-full">
-            <table className="w-full text-left">
-              <thead className="hidden sm:table-header-group bg-gray-50/50 dark:bg-gray-800/30 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                <tr>
-                  <th className="px-6 sm:px-10 py-5">Student</th>
-                  <th className="px-6 sm:px-10 py-5">Package</th>
-                  <th className="px-6 sm:px-10 py-5 text-right">Registered On</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50 dark:divide-gray-800 text-sm">
-                {data.recentActivity.map((s) => (
-                  <tr key={s.id} className="flex flex-col sm:table-row hover:bg-indigo-50/20 transition-colors p-6 sm:p-0">
-                    <td className="sm:px-10 sm:py-5 flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-xs shrink-0">
-                        {s.initials}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="font-bold text-gray-800 dark:text-white">
-                          {s.name}
-                        </span>
-                        {/* Mobile Only Status */}
-                        <span className="sm:hidden px-2 py-0.5 mt-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-[9px] font-black uppercase text-slate-500 w-fit">
-                          {s.status}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="hidden sm:table-cell px-6 sm:px-10 py-5">
-                      <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-[10px] font-black uppercase text-slate-500 tracking-widest">
-                        {s.phase}
-                      </span>
-                    </td>
-                    <td className="sm:px-10 sm:py-5 sm:text-right text-gray-400 font-bold text-xs mt-2 sm:mt-0">
-                      <span className="sm:hidden text-[9px] uppercase tracking-widest mr-2 text-gray-300">Date:</span>
-                      {s.date}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
+              {/* Package Popularity Chart */}
+              {/* Package Popularity Chart */}
+<ChartCard title="Package Popularity" icon={<Package />}>
+  <div className="h-40 sm:h-48 md:h-52 w-full">
+    {packagePopularity && packagePopularity.length > 0 ? (
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie 
+            data={packagePopularity.filter(p => p.students > 0)} 
+            innerRadius={40} 
+            outerRadius={60} 
+            paddingAngle={3} 
+            dataKey="students"
+            label={({ package_name, percent }) => percent > 0.08 ? `${package_name?.split(' ')[0]} (${(percent * 100).toFixed(0)}%)` : ''}
+            labelLine={false}
+          >
+            {packagePopularity.filter(p => p.students > 0).map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={PACKAGE_COLORS[index % PACKAGE_COLORS.length]} />
+            ))}
+          </Pie>
+          <Tooltip 
+            formatter={(value, name, props) => [`${value} Students`, props.payload?.package_name || 'Package']}
+            contentStyle={{
+              backgroundColor: '#1e293b',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '13px',
+              color: '#ffffff',
+              padding: '8px 12px',
+              boxShadow: '0 8px 20px rgba(0,0,0,0.2)'
+            }}
+            itemStyle={{
+              color: '#ffffff',
+              fontSize: '12px'
+            }}
+            labelStyle={{
+              color: '#94a3b8',
+              fontSize: '11px',
+              fontWeight: 'bold'
+            }}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+    ) : (
+      <div className="h-full flex items-center justify-center">
+        <p className="text-xs sm:text-sm text-slate-400">No package data available</p>
       </div>
+    )}
+  </div>
+  
+  {/* Legend */}
+  {packagePopularity && packagePopularity.length > 0 && (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 mt-4 sm:mt-5 pt-2">
+      {packagePopularity.map((pkg, index) => (
+        <div key={pkg.package_name} className="flex items-center gap-2 group/legend transition-all duration-300 hover:translate-x-1">
+          <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-all duration-300 group-hover/legend:scale-110" style={{ backgroundColor: pkg.students > 0 ? PACKAGE_COLORS[index % PACKAGE_COLORS.length] : '#cbd5e1' }}></div>
+          <span className="text-[0.65rem] sm:text-sm font-medium text-slate-600 dark:text-slate-400 truncate group-hover/legend:text-teal-600 dark:group-hover/legend:text-teal-400 transition-colors">
+            {pkg.package_name}: <span className="font-bold text-slate-800 dark:text-white">{pkg.students}</span>
+          </span>
+        </div>
+      ))}
     </div>
+  )}
+</ChartCard>
+
+              {/* Students by Location Chart */}
+              <ChartCard title="Students by Location" icon={<Globe />}>
+                <div className="h-40 sm:h-48 md:h-52 w-full">
+                  {locationDistribution && locationDistribution.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart 
+                        data={locationDistribution} 
+                        layout="vertical" 
+                        margin={{ left: 0, right: 20 }}
+                      >
+                        <XAxis type="number" hide />
+                        <YAxis 
+                          dataKey="location" 
+                          type="category" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          width={70} 
+                          tick={{ fontSize: 9, fill: '#64748b', fontWeight: 600 }}
+                        />
+                        <Tooltip 
+                          formatter={(value) => [value, 'Students']}
+                          contentStyle={tooltipStyle}
+                          cursor={false}
+                        />
+                        <Bar 
+                          dataKey="students" 
+                          fill="#2A9D8F" 
+                          radius={[0, 6, 6, 0]}
+                          activeBar={false}
+                          isAnimationActive={true}
+                        >
+                          <LabelList 
+                            dataKey="students" 
+                            position="right" 
+                            fill="#2A9D8F" 
+                            style={{ fontSize: '9px', fontWeight: 700 }}
+                          />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <p className="text-xs sm:text-sm text-slate-400">No location data available</p>
+                    </div>
+                  )}
+                </div>
+              </ChartCard>
+            </div>
+          </div>
+
+          {/* ================= RECENT REGISTRATIONS ================= */}
+          {recentApplications && recentApplications.length > 0 && (
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-md transition-all duration-500 hover:shadow-2xl overflow-hidden">
+              <div className="p-4 sm:p-5 md:p-6 flex flex-col sm:flex-row justify-between items-center gap-3 border-b border-slate-100 dark:border-slate-800">
+                <div className="text-center sm:text-left">
+                  <div className="flex items-center gap-2 mb-1">
+                    <FileText size={14} className="text-teal-500 transition-all duration-300 hover:scale-110" />
+                    <p className="text-xs sm:text-lg font-bold text-slate-800 dark:text-white">
+                      Recent Registrations
+                    </p>
+                  </div>
+                  <p className="text-[0.55rem] sm:text-xs md:text-sm font-soro text-slate-700 dark:text-slate-400">
+                    Student registration applications - Priority based on age
+                  </p>
+                </div>
+                <Link
+                  to="/students"
+                  className="group/btn relative px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-[0.6rem] sm:text-xs font-bold uppercase tracking-wider overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-105"
+                >
+                  <span className="relative z-10 flex items-center gap-1">
+                    View All
+                    <ArrowUpRight size={10} className="group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
+                  </span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-teal-600 to-emerald-600 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300"></div>
+                </Link>
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full min-w-[700px]">
+                  <thead className="bg-slate-50 dark:bg-slate-800/50">
+                    <tr className="text-[0.55rem] sm:text-xs md:text-smfont-soro font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      <th className="px-4 sm:px-5 py-3 sm:py-4 text-left">ID</th>
+                      <th className="px-4 sm:px-5 py-3 sm:py-4 text-left">Date</th>
+                      <th className="px-4 sm:px-5 py-3 sm:py-4 text-left">Student Name</th>
+                      <th className="px-4 sm:px-5 py-3 sm:py-4 text-left">Package</th>
+                      <th className="px-4 sm:px-5 py-3 sm:py-4 text-left">Priority</th>
+                      <th className="px-4 sm:px-5 py-3 sm:py-4 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {recentApplications.map((app) => {
+                      // Calculate age from DOB using frontend logic
+                      const age = calculateAge(app.dob);
+                      const priority = getPriority(age);
+                      
+                      return (
+                        <tr key={app.id} className="group/row transition-all duration-300 hover:bg-gradient-to-r hover:from-teal-50/50 hover:to-transparent dark:hover:from-teal-900/20">
+                          <td className="px-4 sm:px-5 py-3 sm:py-4 align-middle">
+                            <span className="text-[0.65rem] sm:text-sm font-soro font-bold text-teal-600 dark:text-teal-400 group-hover/row:text-teal-500 transition-colors">
+                              #{app.id}
+                            </span>
+                          </td>
+                          <td className="px-4 sm:px-5 py-3 sm:py-4 align-middle">
+                            <span className="text-[0.65rem] sm:text-sm font-soro text-slate-700 dark:text-slate-400">
+                              {app.registered_at}
+                            </span>
+                          </td>
+                          <td className="px-4 sm:px-5 py-3 sm:py-4 align-middle">
+                            <div className="flex items-center gap-2 sm:gap-3">
+                              <div className="relative">
+                                <div className="absolute inset-0 bg-gradient-to-r from-teal-400 to-emerald-400 rounded-xl blur-md opacity-0 group-hover/row:opacity-50 transition-opacity duration-300"></div>
+                                <div className="relative w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-br from-teal-100 to-teal-200 dark:from-teal-900/50 dark:to-teal-800/30 text-teal-700 dark:text-teal-300 flex items-center justify-center font-bold text-[0.6rem] sm:text-xs shadow-md group-hover/row:scale-110 transition-transform duration-300">
+                                  {getInitials(app.name)}
+                                </div>
+                              </div>
+                              <span className="text-[0.7rem] sm:text-sm font-semibold text-slate-800 dark:text-slate-200 group-hover/row:text-teal-600 dark:group-hover/row:text-teal-400 transition-colors">
+                                {app.name}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 sm:px-5 py-3 sm:py-4 align-middle">
+                            <span className="text-[0.65rem] sm:text-sm text-slate-600 dark:text-slate-300">
+                              {app.package || 'No Package Found '}
+                            </span>
+                          </td>
+                          <td className=" sm:px-5 py-3 sm:py-4 align-middle">
+                            <span className={`inline-flex items-center justify-center  px-2 sm:px-3 py-1 rounded-full text-[0.55rem] sm:text-xs font-soro font-bold uppercase tracking-wider transition-all duration-300 group-hover/row:scale-105 ${priority.color} ${priority.width}`}>
+                              {priority.label}
+                            </span>
+                          </td>
+                          <td className="px-2 sm:px-5 py-3 sm:py-4 text-right align-middle">
+                            <button
+                              onClick={() => handleViewApplication(app)}
+                              className="group/btn inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5   text-teal-700 dark:text-teal-300 rounded-lg text-[0.6rem] sm:text-xs font-semibold transition-all duration-300   hover:scale-105"
+                            >
+                              <ScanEye size={23} className="hover:text-teal-500 text-teal-300 dark:text-white" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+                {recentApplications.map((app) => {
+                  const age = calculateAge(app.dob);
+                  const priority = getPriority(age);
+                  return (
+                    <MobileApplicationCard 
+                      key={app.id}
+                      app={app}
+                      priority={priority}
+                      onView={() => handleViewApplication(app)}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Application Review Modal - FIXED: Added studentId prop */}
+      {isModalOpen && selectedStudentId && (
+        <ApplicationReviewModal 
+          studentId={selectedStudentId}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedStudentId(null);
+          }}
+          onRefresh={() => {
+            fetchDashboardData();
+          }}
+        />
+      )}
+    </>
   );
 };
-
-const KpiCard = ({ title, value, icon }) => (
-  <div className="w-full bg-white dark:bg-gray-900 p-8 md:p-10 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-xl shadow-slate-200/40 dark:shadow-none flex flex-col items-center text-center lg:items-start lg:text-left transition-all hover:translate-y-2 hover:shadow-2xl">
-    <div className="w-14 h-14 md:w-16 md:h-16 flex items-center justify-center rounded-3xl bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 mb-8 shadow-inner">
-      {React.cloneElement(icon, { size: 28 })}
-    </div>
-    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-2">
-      {title}
-    </p>
-    <div className="flex flex-col lg:flex-row items-center lg:items-end gap-2">
-      <h2 className="text-3xl md:text-5xl font-black text-gray-800 dark:text-white leading-none tracking-tighter">
-        {value}
-      </h2>
-    </div>
-  </div>
-);
 
 export default Dashboard;

@@ -11,6 +11,12 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use App\Models\Location;
 use App\Models\Enrolment;
+use App\Models\Package;
+use App\Models\Instructor;
+use App\Models\PackageRequest;
+use App\Notifications\PackageRequestApprovedNotification;
+use App\Notifications\StudentAssignedNotification;
+
 
 class StudentController extends Controller
 {
@@ -24,10 +30,11 @@ class StudentController extends Controller
             'phone'            => 'required|string|unique:users,phone',
             'password'         => 'required|string|min:8',
             'profile_picture'    => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-
+            
             // Student Fields
             'package_id'       => 'nullable|exists:packages,id',
             'province'         => 'required|string',
+            'dob'              => 'required|date|before:today',
             'street_address'   => 'required|string',
             'city'             => 'required|string',
             'postal_code'      => 'required|string',
@@ -68,6 +75,7 @@ class StudentController extends Controller
                 'user_id'           => $user->id,
                 'package_id'        => $request->package_id,
                 'instructor_id'     => null, 
+                'dob'               => $request->dob,
                 'province'          => $request->province,
                 'appartment'        => $request->appartment,
                 'street_address'    => $request->street_address,
@@ -147,7 +155,7 @@ public function index(Request $request)
     }
 
     // 5. BACKEND PAGINATION: Get 10 results per page
-    $students = $query->latest('students.created_at')->paginate(2);
+    $students = $query->latest('students.created_at')->paginate(10);
 
     return response()->json([
         'success' => true,
@@ -160,7 +168,11 @@ public function index(Request $request)
     ]);
 }
 
-//test x good keeep this 
+
+
+
+
+// /test x good keeep this 
 public function getOnboardingData(Request $request)
 {
     $locationId = $request->query('location_id');
@@ -416,16 +428,72 @@ public function getStudentsByInstructor(Request $request)
 
 //student main pgae
 
-    public function adminIndex(Request $request)
+//     public function adminIndex(Request $request)
+// {
+//     // 1. Start query with all necessary relationships
+//     $query = Student::with(['user', 'package', 'instructor.user']);
+
+//     // 2. Filter by User Status (pending, active, etc.)
+//     if ($request->filled('status')) {
+//         $status = strtolower($request->status);
+//         $query->whereHas('user', function($q) use ($status) {
+//             $q->where('status', $status);
+//         });
+//     }
+
+//     // 3. Search by Name or Email
+//     if ($request->filled('search')) {
+//         $search = $request->search;
+//         $query->whereHas('user', function($q) use ($search) {
+//             $q->where('name', 'like', "%{$search}%")
+//               ->orWhere('email', 'like', "%{$search}%");
+//         });
+//     }
+
+//     // 4. Filter by Location ID (Numeric ID from React)
+//     if ($request->filled('location') && $request->location !== 'All') {
+//         $query->where('province', $request->location);
+//     }
+
+//     // 5. Paginate (Set to 10 for a full-looking table)
+//     $students = $query->latest('students.created_at')->paginate(10);
+
+//     // 6. Attach the Location Name text manually
+//     $students->getCollection()->transform(function ($student) {
+//         $loc = \App\Models\Location::find($student->province);
+//         $student->province_name_text = $loc ? $loc->province_name : 'N/A';
+//         return $student;
+//     });
+
+//     return response()->json([
+//         'success' => true,
+//         'data'    => $students->items(),
+//         'meta'    => [
+//             'current_page' => $students->currentPage(),
+//             'last_page'    => $students->lastPage(),
+//             'total'        => $students->total(),
+//         ]
+//     ]);
+// }
+
+
+
+///index test 04-04
+public function adminIndex(Request $request)
 {
     // 1. Start query with all necessary relationships
     $query = Student::with(['user', 'package', 'instructor.user']);
 
-    // 2. Filter by User Status (pending, active, etc.)
+    // 2. Filter by User Status (only active or blocked - exclude pending by default)
     if ($request->filled('status')) {
         $status = strtolower($request->status);
         $query->whereHas('user', function($q) use ($status) {
             $q->where('status', $status);
+        });
+    } else {
+        // Default: exclude pending students, only show active and blocked
+        $query->whereHas('user', function($q) {
+            $q->whereIn('status', ['active', 'blocked']);
         });
     }
 
@@ -446,10 +514,31 @@ public function getStudentsByInstructor(Request $request)
     // 5. Paginate (Set to 10 for a full-looking table)
     $students = $query->latest('students.created_at')->paginate(10);
 
-    // 6. Attach the Location Name text manually
+    // 6. Attach the Location Name text and calculate payment info
     $students->getCollection()->transform(function ($student) {
         $loc = \App\Models\Location::find($student->province);
         $student->province_name_text = $loc ? $loc->province_name : 'N/A';
+        
+        // Calculate payment info from enrolment
+        $enrolment = \App\Models\Enrolment::where('student_id', $student->id)
+            ->whereIn('status', ['active', 'paid'])
+            ->latest()
+            ->first();
+        
+        if ($enrolment) {
+            $totalToPay = $enrolment->total_amount;
+            $balanceDue = $enrolment->balance_due;
+            $student->balanceCAD = number_format($balanceDue, 2);
+            $student->paymentStatus = $balanceDue <= 0 ? 'Paid' : 'Due';
+            $student->totalPaid = number_format($totalToPay - $balanceDue, 2);
+            $student->totalPackageAmount = number_format($totalToPay, 2);
+        } else {
+            $student->balanceCAD = '0.00';
+            $student->paymentStatus = 'Due';
+            $student->totalPaid = '0.00';
+            $student->totalPackageAmount = $student->package ? number_format($student->package->amount, 2) : '0.00';
+        }
+        
         return $student;
     });
 
@@ -460,6 +549,7 @@ public function getStudentsByInstructor(Request $request)
             'current_page' => $students->currentPage(),
             'last_page'    => $students->lastPage(),
             'total'        => $students->total(),
+            'per_page'     => $students->perPage(),
         ]
     ]);
 }
@@ -645,5 +735,221 @@ public function unblockStudent($id)
 }
 
 
+
+/**
+ * Update student information
+ */
+public function update(Request $request, $id)
+{
+    try {
+        $student = Student::findOrFail($id);
+        
+        // Validation rules
+        $validator = Validator::make($request->all(), [
+            // User fields
+            'name' => 'sometimes|string|max:255',
+            'email' => 'sometimes|email|unique:users,email,' . $student->user_id,
+            'phone' => 'sometimes|string|unique:users,phone,' . $student->user_id,
+            
+            // Student fields
+            'permit_number' => 'nullable|string|max:50|unique:students,permit_number,' . $id,
+            'street_address' => 'nullable|string|max:255',
+            'appartment' => 'nullable|string|max:100',
+            'city' => 'nullable|string|max:100',
+            'postal_code' => 'nullable|string|max:20',
+            'state' => 'nullable|string|max:100',
+            'country' => 'nullable|string|max:100',
+            'parent_name' => 'nullable|string|max:255',
+            'parent_email' => 'nullable|email|max:255',
+            'parent_phone' => 'nullable|string|max:20',
+            'additional_notes' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        return DB::transaction(function () use ($request, $student) {
+            // 1. Update User table
+            if ($student->user) {
+                $userData = [];
+                if ($request->has('name')) $userData['name'] = $request->name;
+                if ($request->has('email')) $userData['email'] = $request->email;
+                if ($request->has('phone')) $userData['phone'] = $request->phone;
+                
+                if (!empty($userData)) {
+                    $student->user->update($userData);
+                }
+            }
+
+            // 2. Update Student table
+            $studentData = [];
+            if ($request->has('permit_number')) $studentData['permit_number'] = $request->permit_number;
+            if ($request->has('street_address')) $studentData['street_address'] = $request->street_address;
+            if ($request->has('appartment')) $studentData['appartment'] = $request->appartment;
+            if ($request->has('city')) $studentData['city'] = $request->city;
+            if ($request->has('postal_code')) $studentData['postal_code'] = $request->postal_code;
+            if ($request->has('state')) $studentData['state'] = $request->state;
+            if ($request->has('country')) $studentData['country'] = $request->country;
+            if ($request->has('parent_name')) $studentData['parent_name'] = $request->parent_name;
+            if ($request->has('parent_email')) $studentData['parent_email'] = $request->parent_email;
+            if ($request->has('parent_phone')) $studentData['parent_phone'] = $request->parent_phone;
+            if ($request->has('additional_notes')) $studentData['additional_notes'] = $request->additional_notes;
+
+            if (!empty($studentData)) {
+                $student->update($studentData);
+            }
+
+            // 3. Return updated student data
+            $updatedStudent = Student::with('user')->findOrFail($student->id);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Student information updated successfully',
+                'data' => [
+                    'id' => $updatedStudent->id,
+                    'name' => $updatedStudent->user->name ?? null,
+                    'email' => $updatedStudent->user->email ?? null,
+                    'phone' => $updatedStudent->user->phone ?? null,
+                    'permit_number' => $updatedStudent->permit_number,
+                    'street_address' => $updatedStudent->street_address,
+                    'appartment' => $updatedStudent->appartment,
+                    'city' => $updatedStudent->city,
+                    'postal_code' => $updatedStudent->postal_code,
+                    'state' => $updatedStudent->state,
+                    'country' => $updatedStudent->country,
+                    'parent_name' => $updatedStudent->parent_name,
+                    'parent_email' => $updatedStudent->parent_email,
+                    'parent_phone' => $updatedStudent->parent_phone,
+                    'additional_notes' => $updatedStudent->additional_notes,
+                ]
+            ]);
+        });
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => 'Failed to update student: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+public function approvePackageRequest(Request $request, $requestId)
+{
+    try {
+        $validator = Validator::make($request->all(), [
+            'instructor_id' => 'required|exists:instructors,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $packageRequest = PackageRequest::with(['student', 'package', 'location'])
+            ->findOrFail($requestId);
+
+        if ($packageRequest->status !== 'pending') {
+            return response()->json(['error' => 'Request already processed'], 400);
+        }
+
+        $instructorId = $request->instructor_id;
+        $instructor = Instructor::with('user')->findOrFail($instructorId);
+
+        DB::transaction(function () use ($packageRequest, $instructorId, $instructor) {
+            // 1. Complete old enrolment if exists
+            $oldEnrolment = Enrolment::where('student_id', $packageRequest->student_id)
+                ->whereIn('status', ['active', 'paid'])
+                ->first();
+            if ($oldEnrolment) {
+                $oldEnrolment->update([
+                    'status' => 'completed',
+                    'completed_at' => now(),
+                ]);
+            }
+
+            // 2. Calculate total with tax
+            $taxAmount = ($packageRequest->package->amount * $packageRequest->location->tax_rate) / 100;
+            $totalWithTax = round($packageRequest->package->amount + $taxAmount, 2);
+
+            // 3. Create new enrolment
+            Enrolment::create([
+                'student_id' => $packageRequest->student_id,
+                'package_id' => $packageRequest->package_id,
+                'location_id' => $packageRequest->location_id,
+                'total_amount' => $totalWithTax,
+                'balance_due' => $totalWithTax,
+                'progress_percentage' => 0,
+                'status' => 'active',
+            ]);
+
+            // 4. Update student record
+            $student = $packageRequest->student;
+            $student->package_id = $packageRequest->package_id;
+            $student->instructor_id = $instructorId;
+            $student->save();
+
+            // 5. Mark request as approved
+            $packageRequest->update([
+                'status' => 'approved',
+                'approved_at' => now(),
+                'instructor_id' => $instructorId,
+            ]);
+            // After $packageRequest->update(...)
+$this->updatePackageRequestNotification($packageRequest->id, 'approved');
+
+            // 6. Notify student
+            $student->user->notify(new PackageRequestApprovedNotification($packageRequest, $instructor->user->name));
+
+            // 7. Notify instructor
+            $instructor->user->notify(new \App\Notifications\StudentAssignedNotification([
+                'student_name' => $student->user->name,
+                'package_name' => $packageRequest->package->package_name,
+                'student_id' => $student->id,
+            ]));
+        });
+
+        return response()->json(['success' => true, 'message' => 'Package request approved and instructor assigned.']);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+            'line' => $e->getLine(),
+            'file' => $e->getFile()
+        ], 500);
+    }
+}
+
+public function rejectPackageRequest($requestId)
+{
+    $packageRequest = PackageRequest::findOrFail($requestId);
+
+    if ($packageRequest->status !== 'pending') {
+        return response()->json(['error' => 'Request already processed'], 400);
+    }
+
+    $packageRequest->update([
+        'status' => 'rejected',
+        'admin_notes' => request('admin_notes', 'Rejected by admin')
+    ]);
+    $this->updatePackageRequestNotification($packageRequest->id, 'rejected');
+
+    // Optional: Notify student
+    $packageRequest->student->user->notify(new \App\Notifications\PackageRequestRejectedNotification($packageRequest));
+
+    return response()->json(['success' => true, 'message' => 'Package request rejected.']);
+}
+private function updatePackageRequestNotification($requestId, $newStatus)
+{
+    $notification = \Illuminate\Notifications\DatabaseNotification::where('type', 'App\Notifications\NewPackageRequestNotification')
+        ->where('data->request_id', $requestId)
+        ->first();
+    
+    if ($notification) {
+        $data = $notification->data;
+        $data['request_status'] = $newStatus;
+        $notification->data = $data;
+        $notification->save();
+    }
+}
 
   }

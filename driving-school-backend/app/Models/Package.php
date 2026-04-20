@@ -4,19 +4,25 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Package extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
-   protected $fillable = [
-    'package_name',
-    'license_class',
-    'amount',
-    'hours'
-];
+    protected $fillable = [
+        'package_name',
+        'license_class',
+        'amount',
+        'hours',
+        'description',
+        'included_items'
+    ];
 
-// Delete the public function location() { ... }
+    protected $casts = [
+        'included_items' => 'array',
+        'deleted_at' => 'datetime',
+    ];
 
     /**
      * Link to the location (and its tax rate) this package belongs to

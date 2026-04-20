@@ -42,6 +42,10 @@ class ScheduleAssignment extends Model
     {
         return $this->belongsTo(Instructor::class);
     }
+    public function testEvaluation()
+{
+    return $this->hasOne(TestEvaluation::class, 'assignment_id');
+}
 
     /**
      * The attendance record for this specific assignment

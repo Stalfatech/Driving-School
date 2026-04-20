@@ -100,31 +100,10 @@ class LocationController extends Controller
         ]);
     }
 
-    /**
-     * Delete a location (Admin Only via Middleware)
-     */
-    // public function destroy($id)
-    // {
-    //     $location = Location::find($id);
-    //     if (!$location) {
-    //         return response()->json(['success' => false, 'message' => 'Location not found'], 404);
-    //     }
-
-    //     // Integrity Check: Don't delete if cars or packages are linked to this location
-    //     if ($location->cars()->exists() || $location->packages()->exists()) {
-    //         return response()->json([
-    //             'success' => false, 
-    //             'message' => 'Cannot delete. There are cars or packages assigned to this location.'
-    //         ], 400);
-    //     }
-
-    //     $location->delete();
-
-    //     return response()->json([
-    //         'success' => true,
-    //         'message' => 'Location deleted successfully!'
-    //     ]);
-    // }
+    
+     // Delete a location (Admin Only via Middleware)
+     
+    
 
     public function destroy($id)
 {

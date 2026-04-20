@@ -1,14 +1,16 @@
 
+
 import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { Home, Menu, X, Clock } from "lucide-react";
 import ProfileModal from "../ProfileModal";
+import {  Home, Clock } from "lucide-react";
 
 const InstructorNavbar = ({ isOpen, setIsOpen }) => {
   const location = useLocation();
-  const [currentTime, setCurrentTime] = useState(new Date());
   const [showProfile, setShowProfile] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const [user, setUser] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // Fetch user data from localStorage
   useEffect(() => {
@@ -18,18 +20,41 @@ const InstructorNavbar = ({ isOpen, setIsOpen }) => {
     }
   }, []);
 
+  // Simulate unread count for instructor (you can replace with API call)
+  useEffect(() => {
+    // Fetch unread notifications count from API
+    // For now using mock data
+    setUnreadCount(3);
+  }, []);
+
   // Update clock every minute
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
 
-  // Format dynamic title based on path
-  const pageTitle = location.pathname === "/instructor" 
-    ? "Dashboard" 
-    : location.pathname.split("/").pop().replace(/-/g, " ");
+  // Get page title without "instructor/" prefix
+  const getPageTitle = () => {
+    const path = location.pathname;
+    const cleanPath = path.replace(/^\/instructor/, "");
+    
+    if (cleanPath === "" || cleanPath === "/") return "Dashboard";
+    
+    return cleanPath
+      .replace(/^\//, "")
+      .replace(/-/g, " ")
+      .split(" ")
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  };
 
-  const dateStr = currentTime.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  const pageTitle = getPageTitle();
+
+  const dateStr = currentTime.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
   const timeStr = currentTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   // Get user initials for avatar fallback
@@ -40,76 +65,71 @@ const InstructorNavbar = ({ isOpen, setIsOpen }) => {
 
   return (
     <>
-      <header className="sticky top-0 z-40 flex items-center justify-between px-4 md:px-8 py-3 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-sm transition-all">
-        
+      <header className="relative flex items-center justify-between px-4 md:px-6 py-2.5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm">
         {/* LEFT SECTION */}
-        <div className="flex items-center gap-4">
-          {/* MOBILE TOGGLE BUTTON */}
+        <div className="flex items-center gap-3 md:gap-4">
+          {/* MOBILE MENU BUTTON */}
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsOpen(!isOpen);
-            }}
-            className="lg:hidden p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-200 hover:text-teal transition-all active:scale-90"
-            aria-label="Toggle Menu"
+            onClick={() => setIsOpen(!isOpen)}
+            className="md:hidden p-2 rounded-lg bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-all duration-300"
           >
-            {isOpen ? <X size={22} /> : <Menu size={22} />}
+            <span className="material-symbols-outlined text-slate-700 dark:text-slate-300 text-xl">
+              {isOpen ? "close" : "menu"}
+            </span>
           </button>
 
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <Home size={16} className="text-teal shrink-0" />
-              <h1 className="text-base md:text-lg font-black uppercase italic text-slate-800 dark:text-white tracking-tight leading-none">
+          {/* PAGE TITLE SECTION */}
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 md:w-8 md:h-8 bg-teal-50 dark:bg-teal-900/20 rounded-lg flex items-center justify-center">
+              <Home className="w-4 h-4 md:w-4.5 md:h-4.5 text-teal-600 dark:text-teal-400" strokeWidth={1.8} />
+            </div>
+            <div>
+              <h1 className="text-[0.95rem] sm:text-[1.3rem] md:text-[1.5rem] font-semibold tracking-tight text-slate-800 dark:text-slate-100 leading-tight">
                 {pageTitle}
               </h1>
-            </div>
-            <div className="hidden sm:flex items-center gap-2 mt-1">
-              <Clock size={10} className="text-slate-400" />
-              <p className="text-[9px] uppercase tracking-widest text-slate-400 font-black">
-                {dateStr} • {timeStr}
-              </p>
+              <div className="hidden sm:flex items-center gap-1.5 text-[0.75rem] md:text-[1rem] lg:text-[1.1rem] text-slate-500 dark:text-slate-400 font-mono tracking-wide">
+                <Clock size={12} className="text-slate-400" />
+                <span>{dateStr}</span>
+                <span className="text-slate-400">•</span>
+                <span>{timeStr}</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* RIGHT SECTION - Removed notification bell */}
-        <div className="flex items-center gap-2 md:gap-4">
-          {/* Profile Info - Clickable to open profile modal */}
+        {/* RIGHT SECTION */}
+        <div className="flex items-center gap-2 sm:gap-3">
+         
+
+          {/* Profile Section */}
           <button
             onClick={() => setShowProfile(true)}
-            className="flex items-center gap-3 pl-2 md:pl-4 border-l border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 pr-3 py-1.5 rounded-2xl transition-all group"
+            className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 group"
+            title="Profile Settings"
           >
-            <div className="text-right hidden md:block leading-tight">
-              <p className="text-xs font-black text-slate-800 dark:text-white">
-                {user?.name || "Instructor"}
-              </p>
-              <p className="text-[9px] text-teal font-black uppercase tracking-widest">
-                Burin Branch
-              </p>
-            </div>
-            <div className="relative group cursor-pointer">
-              {user?.profile_picture ? (
-                <img
-                  src={user.profile_picture}
-                  alt="profile"
-                  className="w-9 h-9 md:w-10 md:h-10 rounded-xl object-cover border-2 border-slate-100 dark:border-slate-700 shadow-sm group-hover:border-teal transition-all"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = `https://ui-avatars.com/api/?name=${user.name}&background=008B8B&color=fff`;
-                  }}
-                />
-              ) : (
-                <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-linear-to-br from-teal to-teal-600 flex items-center justify-center text-white font-black text-sm border-2 border-slate-100 dark:border-slate-700 shadow-sm group-hover:border-teal transition-all">
-                  {getInitials(user?.name)}
-                </div>
-              )}
-              <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-white dark:border-background-dark rounded-full"></div>
-            </div>
+            {user?.profile_picture ? (
+              <img
+                src={user.profile_picture}
+                alt="profile"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-slate-200 dark:border-slate-700 group-hover:border-teal-300 transition-colors"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = `https://ui-avatars.com/api/?name=${user?.name || 'Instructor'}&background=008B8B&color=fff&rounded=true&size=32`;
+                }}
+              />
+            ) : (
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center text-white font-bold text-xs border border-slate-200 dark:border-slate-700 group-hover:border-teal-300 transition-colors">
+                {getInitials(user?.name)}
+              </div>
+            )}
+            <span className="text-[0.7rem] sm:text-[0.75rem] font-medium text-slate-700 dark:text-slate-300 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
+              {user?.name?.split(' ')[0] || "Instructor"}
+            </span>
           </button>
         </div>
       </header>
 
-      {/* Profile Modal */}
+      {/* PROFILE MODAL */}
       {showProfile && <ProfileModal onClose={() => setShowProfile(false)} />}
     </>
   );

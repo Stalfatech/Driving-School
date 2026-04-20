@@ -16,8 +16,12 @@ class Enrolment extends Model
         'total_amount',
         'balance_due',
         'progress_percentage',
-        'status'
+        'status',
+        'completed_at'
     ];
+    protected $casts = [
+    'completed_at' => 'datetime',
+];
 
     /**
      * Link to the student who is enrolled

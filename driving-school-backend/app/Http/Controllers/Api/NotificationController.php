@@ -162,21 +162,43 @@ class NotificationController extends Controller
         }
     }
 
-    /**
-     * Default message based on notification type
-     */
-    private function getDefaultMessage($type, $data)
-    {
-        if (str_contains($type, 'StudentAssigned')) {
-            return 'New student assigned to you';
-        } elseif (str_contains($type, 'PaymentReceived')) {
-            return 'Payment received: $' . number_format($data['amount'] ?? 0, 2);
-        } elseif (str_contains($type, 'WelcomeStudent')) {
-            return 'Welcome to the driving school!';
-        } elseif (str_contains($type, 'InstructorChanged')) {
-            return 'Your instructor has been changed';
-        } else {
-            return 'New notification';
-        }
+    // Default message based on notification type
+     
+
+private function getDefaultMessage($type, $data)
+{
+    // Use the stored notification_type if available
+    $slug = $data['notification_type'] ?? '';
+
+    if ($slug === 'student_new_assignment') {
+        $instructor = $data['instructor_name'] ?? 'your instructor';
+        $date = $data['date'] ?? 'upcoming date';
+        return "New lesson scheduled with {$instructor} on {$date}.";
     }
+
+    if ($slug === 'student_assignment_updated') {
+        $instructor = $data['instructor_name'] ?? 'your instructor';
+        $newDate = $data['new_date'] ?? 'a new date';
+        return "Your lesson has been rescheduled by {$instructor} to {$newDate}.";
+    }
+
+    if ($slug === 'student_reschedule_request') {
+        $student = $data['student_name'] ?? 'A student';
+        return "{$student} requested to reschedule a lesson.";
+    }
+
+    // Legacy cases (based on class name)
+    if (str_contains($type, 'StudentAssigned')) {
+        return 'New student assigned to you';
+    } elseif (str_contains($type, 'PaymentReceived')) {
+        return 'Payment received: $' . number_format($data['amount'] ?? 0, 2);
+    } elseif (str_contains($type, 'WelcomeStudent')) {
+        return 'Welcome to the driving school!';
+    } elseif (str_contains($type, 'InstructorChanged')) {
+        return 'Your instructor has been changed';
+    }
+
+    // Fallback to the precomputed message from the service
+    return $data['message'] ?? 'New notification';
+}
 }

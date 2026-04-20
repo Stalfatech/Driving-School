@@ -13,6 +13,7 @@ class Student extends Model
         'user_id',
         'package_id',
         'instructor_id',
+        'dob',
         'province',
         'appartment',
         'street_address',
@@ -75,4 +76,17 @@ class Student extends Model
     {
         return $this->belongsTo(Location::class, 'province', 'id');
     }
+    //for progress fetching ..
+    public function enrolments()
+{
+    return $this->hasMany(Enrolment::class);
+}
+public function enrolment()
+{
+    return $this->hasOne(Enrolment::class);
+}
+public function packageRequests()
+{
+    return $this->hasMany(PackageRequest::class);
+}
 }

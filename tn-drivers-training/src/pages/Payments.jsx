@@ -1,15 +1,175 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
-import SearchBar from "../components/SearchBar";
 import Pagination from "../components/Pagination";
 import { 
-  Download, Wallet, CalendarDays, 
-  RefreshCw, Eye, CheckCircle,
-  XCircle, Clock, Filter, FileText,Mail  
+  Search, Mail, Download, Wallet, Banknote, 
+  CreditCard, Settings, CalendarDays, FileDown, 
+  ScanEye, Eye, X, ChevronDown, RefreshCw, 
+  CheckCircle, XCircle, Clock, Filter, FileText,
+  TrendingUp, TrendingDown, Sparkles
 } from "lucide-react";
 
 const API_BASE = "http://localhost:8000/api";
+
+// KPI Card Component with Hover Effects
+const KpiCard = ({ title, value, growth, icon, subtitle }) => {
+  const isPositiveGrowth = growth && growth > 0;
+  
+  return (
+    <div className="group relative overflow-hidden bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-md transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 hover:scale-105">
+      {/* Animated Gradient Background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-teal-50 via-transparent to-emerald-50 dark:from-teal-900/20 dark:via-transparent dark:to-emerald-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+      <div className="absolute -inset-1 bg-gradient-to-r from-teal-200/30 to-emerald-200/30 dark:from-teal-500/10 dark:to-emerald-500/10 blur-xl group-hover:blur-2xl transition-all duration-500"></div>
+      
+      <div className="relative z-10 text-center">
+        <div className="flex items-center justify-center mb-2 sm:mb-3">
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-teal-400 to-emerald-400 rounded-xl blur-md opacity-0 group-hover:opacity-50 transition-opacity duration-300"></div>
+            <div className="relative w-9 h-9 sm:w-11 sm:h-11 flex items-center justify-center rounded-xl bg-gradient-to-br from-teal-100 to-teal-200 dark:from-teal-900/60 dark:to-teal-800/40 text-teal-600 dark:text-teal-400 shadow-md group-hover:scale-110 group-hover:shadow-lg transition-all duration-300">
+              {React.cloneElement(icon, { size: 18, strokeWidth: 1.8 })}
+            </div>
+          </div>
+        </div>
+        
+        <p className="text-xs sm:text-sm font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
+          {title}
+        </p>
+        <h3 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white group-hover:bg-gradient-to-r group-hover:from-teal-600 group-hover:to-emerald-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">
+          {value}
+        </h3>
+        
+        {growth && (
+          <div className={`flex items-center justify-center gap-1 mt-2 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[0.55rem] sm:text-xs font-bold font-mono transition-all duration-300 group-hover:scale-105 ${
+            isPositiveGrowth 
+              ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 group-hover:bg-green-200 dark:group-hover:bg-green-900/60'
+              : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 group-hover:bg-red-200 dark:group-hover:bg-red-900/60'
+          }`}>
+            {isPositiveGrowth ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+            {isPositiveGrowth ? '+' : ''}{growth}%
+          </div>
+        )}
+        
+        {subtitle && (
+          <p className="text-[0.55rem] sm:text-xs text-slate-400 dark:text-slate-500 mt-2 font-mono group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">
+            {subtitle}
+          </p>
+        )}
+      </div>
+      
+      {/* Decorative corner sparkle */}
+      <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+        <Sparkles size={10} className="text-teal-400/60" />
+      </div>
+    </div>
+  );
+};
+
+// Payment Details Modal Component
+const PaymentDetailsModal = ({ payment, onClose }) => {
+  const formatCAD = (amount) => new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(amount || 0);
+
+  if (!payment) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4">
+      <div className="bg-white dark:bg-slate-950 w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
+        
+        {/* Header */}
+        <div className="flex items-center justify-between px-8 py-6 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shrink-0">
+          <div>
+            <h2 className="text-xl font-bold text-slate-800 dark:text-white">
+              Payment <span className="text-teal-600 dark:text-teal-400">Details</span>
+            </h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              Transaction #{payment.id || 'N/A'}
+            </p>
+          </div>
+          <button 
+            onClick={onClose} 
+            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 transition-colors"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+          
+          {/* Amount Section */}
+          <div className="text-center border-b border-slate-100 dark:border-slate-800 pb-6 mb-6">
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Total Amount</p>
+            <p className="text-4xl font-bold text-teal-600 dark:text-teal-400">{formatCAD(payment.amount)}</p>
+          </div>
+
+          {/* Details Grid */}
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 py-3 border-b border-slate-100 dark:border-slate-800">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Payment ID</span>
+              <span className="text-sm font-medium text-slate-800 dark:text-white">{payment.id || 'N/A'}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-4 py-3 border-b border-slate-100 dark:border-slate-800">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Date</span>
+              <span className="text-sm text-slate-700 dark:text-slate-300">{payment.formatted_date || payment.date || 'N/A'}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-4 py-3 border-b border-slate-100 dark:border-slate-800">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Student Name</span>
+              <span className="text-sm font-medium text-slate-800 dark:text-white">{payment.student?.name || 'N/A'}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-4 py-3 border-b border-slate-100 dark:border-slate-800">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Email</span>
+              <span className="text-sm text-slate-600 dark:text-slate-300">{payment.student?.email || 'N/A'}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-4 py-3 border-b border-slate-100 dark:border-slate-800">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Course</span>
+              <span className="text-sm text-slate-700 dark:text-slate-300">{payment.package_name || payment.course || 'N/A'}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-4 py-3 border-b border-slate-100 dark:border-slate-800">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Transaction ID</span>
+              <span className="text-sm font-mono text-slate-600 dark:text-slate-300">{payment.transaction_id || 'N/A'}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-4 py-3 border-b border-slate-100 dark:border-slate-800">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Payment Method</span>
+              <span className="text-sm text-slate-700 dark:text-slate-300">{payment.method || 'N/A'}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-4 py-3">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Status</span>
+              <span className={`text-sm font-semibold ${
+                payment.status === 'succeeded' ? 'text-green-600' :
+                payment.status === 'pending' ? 'text-amber-600' :
+                payment.status === 'failed' ? 'text-red-600' :
+                'text-slate-600'
+              }`}>
+                {payment.status || 'N/A'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-8 py-5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3 shrink-0">
+          {payment.receipt_url && (
+            <a 
+              href={payment.receipt_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-6 py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm transition-all flex items-center gap-2"
+            >
+              <FileText size={16} />
+              View Receipt
+            </a>
+          )}
+          <button 
+            onClick={onClose}
+            className="px-6 py-2.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-semibold text-sm transition-all shadow-lg shadow-teal-500/20"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const Payments = () => {
   // --- REF FOR SCROLL TARGET ---
@@ -26,38 +186,38 @@ const Payments = () => {
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [totalRevenue, setTotalRevenue] = useState(0);
-  const [filterMethod, setFilterMethod] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
+  const [filteredRevenue, setFilteredRevenue] = useState(0);
   const [stats, setStats] = useState(null);
+  const [selectedPayment, setSelectedPayment] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const limit = 10;
 
+  // Template state
   const [templates, setTemplates] = useState([]);
-const [selectedTemplate, setSelectedTemplate] = useState(null);
-const [templateLoading, setTemplateLoading] = useState(false);
-const [templateUpdateLoading, setTemplateUpdateLoading] = useState(false);
-const [showTemplateEditor, setShowTemplateEditor] = useState(false);
-const [templateForm, setTemplateForm] = useState({
-  subject: '',
-  email_body: '',
-  sms_body: ''
-});
-  // --- FETCH PAYMENTS FROM API ---
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [templateLoading, setTemplateLoading] = useState(false);
+  const [templateUpdateLoading, setTemplateUpdateLoading] = useState(false);
+  const [showTemplateEditor, setShowTemplateEditor] = useState(false);
+  const [templateForm, setTemplateForm] = useState({
+    subject: '',
+    email_body: '',
+    sms_body: ''
+  });
+
+  // --- API FUNCTIONS ---
   const fetchPayments = useCallback(async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('access_token');
       
-      // Build query parameters
       const params = new URLSearchParams({
         page: currentPage,
         per_page: limit,
         ...(searchTerm && { search: searchTerm }),
-        ...(filterDate && { filter_date: filterDate }),
+        ...(filterDate !== 'all' && { filter_date: filterDate }),
         ...(filterDate === 'range' && startDate && { start_date: startDate }),
-        ...(filterDate === 'range' && endDate && { end_date: endDate }),
-        ...(filterMethod && { method: filterMethod }),
-        ...(filterStatus && { status: filterStatus })
+        ...(filterDate === 'range' && endDate && { end_date: endDate })
       });
 
       const response = await axios.get(`${API_BASE}/payments?${params}`, {
@@ -67,16 +227,15 @@ const [templateForm, setTemplateForm] = useState({
       if (response.data.success) {
         setPayments(response.data.data);
         setTotalItems(response.data.meta.total);
-        setTotalRevenue(response.data.total_revenue);
+        setFilteredRevenue(response.data.total_revenue);
       }
     } catch (error) {
       console.error("Payment Fetch Error:", error);
     } finally {
       setLoading(false);
     }
-  }, [currentPage, searchTerm, filterDate, startDate, endDate, filterMethod, filterStatus]);
+  }, [currentPage, searchTerm, filterDate, startDate, endDate]);
 
-  // --- FETCH PAYMENT STATS ---
   const fetchStats = useCallback(async () => {
     try {
       const token = localStorage.getItem('access_token');
@@ -86,136 +245,128 @@ const [templateForm, setTemplateForm] = useState({
 
       if (response.data.success) {
         setStats(response.data.data);
+        setTotalRevenue(response.data.data.total_revenue);
       }
     } catch (error) {
       console.error("Stats Fetch Error:", error);
     }
   }, []);
-  // Fetch email templates
-const fetchTemplates = useCallback(async () => {
-  setTemplateLoading(true);
-  try {
-    const token = localStorage.getItem('access_token');
-    const response = await axios.get(`${API_BASE}/templates`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
 
-    if (response.data.success) {
-      setTemplates(response.data.data);
-      // Find payment receipt template
-      const paymentTemplate = response.data.data.find(t => 
-        t.slug === 'payment_confirmation' || t.slug === 'payment_receipt'
-      );
-      if (paymentTemplate) {
-        setSelectedTemplate(paymentTemplate);
-        setTemplateForm({
-          subject: paymentTemplate.subject,
-          email_body: paymentTemplate.email_body,
-          sms_body: paymentTemplate.sms_body || ''
-        });
+  const fetchTemplates = useCallback(async () => {
+    setTemplateLoading(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await axios.get(`${API_BASE}/templates`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        setTemplates(response.data.data);
+        const paymentTemplate = response.data.data.find(t => 
+          t.slug === 'payment_confirmation' || t.slug === 'payment_receipt'
+        );
+        if (paymentTemplate) {
+          setSelectedTemplate(paymentTemplate);
+          setTemplateForm({
+            subject: paymentTemplate.subject,
+            email_body: paymentTemplate.email_body,
+            sms_body: paymentTemplate.sms_body || ''
+          });
+        }
       }
+    } catch (error) {
+      console.error("Template Fetch Error:", error);
+    } finally {
+      setTemplateLoading(false);
     }
-  } catch (error) {
-    console.error("Template Fetch Error:", error);
-  } finally {
-    setTemplateLoading(false);
-  }
-}, []);
+  }, []);
 
-// Update template
-const handleUpdateTemplate = async (e) => {
-  e.preventDefault();
-  if (!selectedTemplate) return;
-  
-  setTemplateUpdateLoading(true);
-  try {
-    const token = localStorage.getItem('access_token');
-    const response = await axios.put(`${API_BASE}/templates/${selectedTemplate.id}`, templateForm, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+  const handleUpdateTemplate = async (e) => {
+    e.preventDefault();
+    if (!selectedTemplate) return;
+    
+    setTemplateUpdateLoading(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await axios.put(`${API_BASE}/templates/${selectedTemplate.id}`, templateForm, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
-    if (response.data.success) {
-      alert('Template updated successfully!');
-      fetchTemplates(); // Refresh templates
+      if (response.data.success) {
+        alert('Template updated successfully!');
+        fetchTemplates();
+      }
+    } catch (error) {
+      console.error("Template Update Error:", error);
+      alert('Failed to update template');
+    } finally {
+      setTemplateUpdateLoading(false);
     }
-  } catch (error) {
-    console.error("Template Update Error:", error);
-    alert('Failed to update template');
-  } finally {
-    setTemplateUpdateLoading(false);
-  }
-};
-
-// Call fetchTemplates in useEffect
-useEffect(() => {
-  fetchPayments();
-  fetchStats();
-  fetchTemplates(); // Add this
-}, [fetchPayments, fetchStats, fetchTemplates]);
+  };
 
   const formatCAD = (amount) => new Intl.NumberFormat('en-CA', { 
     style: 'currency', 
     currency: 'CAD' 
-  }).format(amount);
+  }).format(amount || 0);
 
-  // --- SCROLL TO TOP ON PAGE CHANGE ---
+  // Calculate growth percentage (mock calculation - you can adjust based on your data)
+  const calculateGrowth = (current, previous) => {
+    if (!previous || previous === 0) return null;
+    return Math.round(((current - previous) / previous) * 100);
+  };
+
+  // Mock previous revenue for growth calculation (you can replace with actual data from API)
+  const previousTotalRevenue = totalRevenue * 0.85; // Example: 15% less last month
+  const previousTodayRevenue = stats?.today_revenue ? stats.today_revenue * 0.9 : 0;
+
+  // --- HANDLERS ---
   useEffect(() => {
     if (topRef.current) {
       topRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentPage]);
 
   useEffect(() => {
     fetchPayments();
     fetchStats();
-  }, [fetchPayments, fetchStats]);
+    fetchTemplates();
+  }, [fetchPayments, fetchStats, fetchTemplates]);
 
-  // --- HANDLE SEARCH ---
-  const handleSearch = useCallback((val) => {
-    setSearchTerm(val);
+  const handleSearch = (e) => {
+    setSearchTerm(e.target.value);
     setCurrentPage(1);
-  }, []);
+  };
 
-  // --- HANDLE PAGE CHANGE ---
-  const handlePageChange = useCallback((newPage) => {
+  const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
-  }, []);
+  };
 
-  // --- HANDLE FILTER CHANGE ---
   const handleFilterDate = (filter) => {
     setFilterDate(filter);
     setCurrentPage(1);
   };
 
-  // --- HANDLE DOWNLOAD DATA ---
   const handleDownloadData = async () => {
     setDownloading(true);
     try {
       const token = localStorage.getItem('access_token');
       
-      // Build query parameters for download (no pagination)
       const params = new URLSearchParams({
-        download: 'true',
         ...(searchTerm && { search: searchTerm }),
-        ...(filterDate && { filter_date: filterDate }),
+        ...(filterDate !== 'all' && { filter_date: filterDate }),
         ...(filterDate === 'range' && startDate && { start_date: startDate }),
-        ...(filterDate === 'range' && endDate && { end_date: endDate }),
-        ...(filterMethod && { method: filterMethod }),
-        ...(filterStatus && { status: filterStatus })
+        ...(filterDate === 'range' && endDate && { end_date: endDate })
       });
 
       const response = await axios.get(`${API_BASE}/payments/download?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
-        responseType: 'blob' // Important for file download
+        responseType: 'blob'
       });
 
-      // Create download link
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
       
-      // Set filename based on date range
       let filename = 'payments_';
       if (filterDate === 'today') {
         filename += new Date().toISOString().split('T')[0];
@@ -243,178 +394,128 @@ useEffect(() => {
     }
   };
 
-  // --- GET STATUS BADGE COLOR ---
   const getStatusBadge = (status) => {
     switch(status) {
       case 'succeeded':
-        return <span className="px-2 py-1 bg-green-100 text-green-600 rounded-lg text-[9px] font-black uppercase flex items-center gap-1"><CheckCircle size={10}/> Paid</span>;
+        return <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-lg text-[10px] font-bold uppercase"><CheckCircle size={10}/> Paid</span>;
       case 'pending':
-        return <span className="px-2 py-1 bg-yellow-100 text-yellow-600 rounded-lg text-[9px] font-black uppercase flex items-center gap-1"><Clock size={10}/> Pending</span>;
+        return <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-lg text-[10px] font-bold uppercase"><Clock size={10}/> Pending</span>;
       case 'failed':
-        return <span className="px-2 py-1 bg-red-100 text-red-600 rounded-lg text-[9px] font-black uppercase flex items-center gap-1"><XCircle size={10}/> Failed</span>;
+        return <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-[10px] font-bold uppercase"><XCircle size={10}/> Failed</span>;
       case 'refunded':
-        return <span className="px-2 py-1 bg-purple-100 text-purple-600 rounded-lg text-[9px] font-black uppercase flex items-center gap-1"><RefreshCw size={10}/> Refunded</span>;
+        return <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-lg text-[10px] font-bold uppercase"><RefreshCw size={10}/> Refunded</span>;
       default:
-        return <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-lg text-[9px] font-black uppercase">{status}</span>;
+        return <span className="px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-lg text-[10px] font-bold uppercase">{status}</span>;
     }
   };
 
+  const handleViewPayment = (payment) => {
+    setSelectedPayment(payment);
+    setIsModalOpen(true);
+  };
+
   return (
-    <div className="w-full min-h-screen bg-slate-50 dark:bg-gray-950 transition-colors font-sans overflow-x-hidden">
+    <div className="flex-1 flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors overflow-hidden">
       {/* SCROLL ANCHOR */}
       <div ref={topRef} />
       
-      <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-        
-        {/* STATS CARDS */}
-        {stats && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-slate-200 dark:border-gray-800">
-              <p className="text-[9px] font-black text-slate-400 uppercase">Total Revenue</p>
-              <p className="text-xl font-black text-slate-900 dark:text-white">{formatCAD(stats.total_revenue)}</p>
-            </div>
-            <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-slate-200 dark:border-gray-800">
-              <p className="text-[9px] font-black text-slate-400 uppercase">Today</p>
-              <p className="text-xl font-black text-teal-600">{formatCAD(stats.today_revenue)}</p>
-            </div>
-            <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-slate-200 dark:border-gray-800">
-              <p className="text-[9px] font-black text-slate-400 uppercase">This Week</p>
-              <p className="text-xl font-black text-indigo-600">{formatCAD(stats.weekly_revenue)}</p>
-            </div>
-            <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-slate-200 dark:border-gray-800">
-              <p className="text-[9px] font-black text-slate-400 uppercase">This Month</p>
-              <p className="text-xl font-black text-amber-600">{formatCAD(stats.monthly_revenue)}</p>
-            </div>
-          </div>
-        )}
-        
-        {/* HEADER SECTION: REVENUE & DOWNLOAD */}
-        <div className="w-full flex flex-col md:flex-row justify-between items-stretch md:items-center gap-6 mb-8 md:mb-12">
-          <div className="flex items-center gap-4 sm:gap-6 bg-white dark:bg-gray-900 p-4 sm:p-6 rounded-3xl sm:rounded-[2.5rem] border border-slate-200 dark:border-gray-800 shadow-xl w-full md:w-auto">
-            <div className="h-12 w-12 sm:h-14 sm:w-14 bg-teal-500/10 text-teal-600 rounded-2xl sm:rounded-3xl flex items-center justify-center shrink-0">
-              <Wallet size={24} className="sm:w-7 sm:h-7" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">
-                {filterDate === 'all' ? 'Total Revenue' : 
-                 filterDate === 'today' ? "Today's Revenue" :
-                 filterDate === 'yesterday' ? "Yesterday's Revenue" :
-                 'Filtered Revenue'}
+      <div className="flex-1 px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="max-w-[1800px] mx-auto">
+          
+          {/* Header */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+            <div>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-slate-800 dark:text-white">
+                Payment <span className="text-teal-600 dark:text-teal-400">Management</span>
+              </h1>
+              <p className="text-sm sm:text-base text-slate-500 dark:text-slate-400 mt-1.5 font-medium">
+                Manage and track all financial transactions, invoices, and payment history
               </p>
-              <h2 className="text-xl sm:text-3xl font-black text-slate-900 dark:text-white transition-all truncate">
-                {loading ? "..." : formatCAD(totalRevenue)}
-              </h2>
+            </div>
+            
+            {/* Export Button */}
+            <div className="flex justify-end w-full md:w-auto">
+              <button 
+                onClick={handleDownloadData}
+                disabled={downloading || loading}
+                className="w-full md:w-auto px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-900 dark:text-white hover:bg-teal-600 hover:text-white dark:hover:bg-slate-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {downloading ? (
+                  <RefreshCw size={18} className="animate-spin" />
+                ) : (
+                  <FileDown size={18} />
+                )}
+                {downloading ? 'Exporting...' : 'Export All Payments'}
+              </button>
             </div>
           </div>
 
-          {/* Download Button */}
-          <button
-            onClick={handleDownloadData}
-            disabled={downloading || loading}
-            className="flex items-center justify-center gap-3 bg-white dark:bg-gray-900 px-8 py-4 sm:py-6 rounded-3xl sm:rounded-[2.5rem] border border-slate-200 dark:border-gray-800 shadow-xl hover:shadow-2xl transition-all w-full md:w-auto group disabled:opacity-50"
-          >
-            <div className="p-2 bg-indigo-100 text-indigo-600 rounded-xl group-hover:scale-110 transition-transform">
-              {downloading ? (
-                <RefreshCw size={20} className="animate-spin" />
-              ) : (
-                <Download size={20} />
-              )}
-            </div>
-            <div className="flex flex-col items-start">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                {filterDate === 'range' ? 'Export Range' : 'Export Data'}
-              </span>
-              <span className="text-sm font-bold dark:text-white">
-                {downloading ? 'Processing...' : 'Download CSV'}
-              </span>
-            </div>
-          </button>
-        </div>
+          {/* KPI Cards - Only 3 cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <KpiCard 
+              title="Total Revenue"
+              value={formatCAD(totalRevenue)}
+              growth={calculateGrowth(totalRevenue, previousTotalRevenue)}
+              icon={<Wallet />}
+              subtitle="Lifetime revenue"
+            />
+            
+            <KpiCard 
+              title="Today"
+              value={formatCAD(stats?.today_revenue || 0)}
+              growth={calculateGrowth(stats?.today_revenue || 0, previousTodayRevenue)}
+              icon={<CalendarDays />}
+              subtitle="Today's transactions"
+            />
+            
+            <KpiCard 
+              title="Filtered Revenue"
+              value={formatCAD(filteredRevenue)}
+              icon={<Filter />}
+              subtitle={filterDate === 'all' ? 'All time' : 
+                        filterDate === 'today' ? 'Today only' :
+                        filterDate === 'yesterday' ? 'Yesterday only' :
+                        startDate && endDate ? `${startDate} to ${endDate}` : 'Custom range'}
+            />
+          </div>
 
-        {/* FILTERS & SEARCH */}
-        <div className="w-full space-y-4 mb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-            <div className="w-full lg:col-span-2">
-              <SearchBar onSearch={handleSearch} placeholder="Search by Transaction ID / Student / Email" />
+          {/* Filters & Search */}
+          <div className="flex flex-col w-full lg:flex-row items-stretch lg:items-center gap-3 sm:gap-4 mb-6">
+            {/* Search Bar */}
+            <div className="relative w-full lg:max-w-md">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search by Transaction ID or Email..."
+                value={searchTerm}
+                onChange={handleSearch}
+                className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm dark:text-slate-300 outline-none focus:ring-2 focus:ring-teal-500/20 transition-all shadow-sm"
+              />
             </div>
-            <div className="w-full lg:col-span-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {[
-                { key: 'all', label: 'All Time' },
-                { key: 'today', label: 'Today' },
-                { key: 'yesterday', label: 'Yesterday' },
-                { key: 'range', label: 'Custom Range' }
-              ].map(t => (
+
+            {/* Filter Buttons */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1">
+              {['all', 'today', 'yesterday', 'range'].map(t => (
                 <button 
-                  key={t.key} 
-                  onClick={() => handleFilterDate(t.key)}
-                  className={`w-full py-3 rounded-xl sm:rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border ${
-                    filterDate === t.key 
-                      ? 'bg-teal-500 border-teal-500 text-white shadow-lg shadow-teal-500/20' 
-                      : 'bg-white dark:bg-gray-900 border-slate-200 dark:border-gray-800 text-slate-500 hover:border-teal-500/50'
+                  key={t} 
+                  onClick={() => handleFilterDate(t)}
+                  className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                    filterDate === t 
+                      ? 'bg-teal-600 text-white shadow-sm' 
+                      : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-teal-400 hover:text-teal-600'
                   }`}
                 >
-                  {t.label}
+                  {t === 'range' ? 'Custom Range' : t.charAt(0).toUpperCase() + t.slice(1)}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Additional Filters Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <select 
-              value={filterMethod} 
-              onChange={(e) => {
-                setFilterMethod(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="px-4 py-3 rounded-xl bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 text-xs font-bold outline-none focus:ring-2 focus:ring-teal-500"
-            >
-              <option value="">All Payment Methods</option>
-              <option value="Cash">Cash</option>
-              <option value="E-Transfer">E-Transfer</option>
-              <option value="Credit Card">Credit Card</option>
-              <option value="Debit Card">Debit Card</option>
-            </select>
-
-            <select 
-              value={filterStatus} 
-              onChange={(e) => {
-                setFilterStatus(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="px-4 py-3 rounded-xl bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 text-xs font-bold outline-none focus:ring-2 focus:ring-teal-500"
-            >
-              <option value="">All Payment Status</option>
-              <option value="succeeded">Succeeded / Paid</option>
-              <option value="pending">Pending</option>
-              <option value="failed">Failed</option>
-              <option value="refunded">Refunded</option>
-            </select>
-
-            <button 
-              onClick={() => {
-                setFilterMethod('');
-                setFilterStatus('');
-                setFilterDate('all');
-                setSearchTerm('');
-                setStartDate('');
-                setEndDate('');
-                setCurrentPage(1);
-              }}
-              className="px-4 py-3 rounded-xl bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-slate-400 text-xs font-black uppercase tracking-wider hover:bg-slate-200 transition flex items-center justify-center gap-2"
-            >
-              <Filter size={14} />
-              Clear All Filters
-            </button>
-          </div>
-
+          {/* Custom Range Date Picker */}
           {filterDate === "range" && (
-            <div className="w-full flex flex-col sm:flex-row items-center gap-4 p-4 sm:p-6 bg-white dark:bg-gray-900 rounded-3xl border border-slate-200 dark:border-gray-800 animate-in fade-in slide-in-from-top-2">
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <CalendarDays className="text-teal-500 shrink-0" size={20} />
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Date Range</span>
-              </div>
-              <div className="flex items-center gap-2 w-full">
+            <div className="flex flex-col sm:flex-row items-center gap-3 p-5 mb-6 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+              <CalendarDays size={18} className="text-teal-500 shrink-0" />
+              <div className="flex items-center gap-3 w-full">
                 <input 
                   type="date" 
                   value={startDate} 
@@ -422,9 +523,9 @@ useEffect(() => {
                     setStartDate(e.target.value);
                     setCurrentPage(1);
                   }} 
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-gray-800 bg-slate-50 dark:bg-gray-800 text-[10px] sm:text-xs dark:text-white outline-none focus:ring-2 focus:ring-teal-500" 
+                  className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-medium dark:text-slate-200 outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all" 
                 />
-                <span className="text-slate-400 font-bold">→</span>
+                <span className="text-slate-400 text-sm">→</span>
                 <input 
                   type="date" 
                   value={endDate} 
@@ -432,273 +533,272 @@ useEffect(() => {
                     setEndDate(e.target.value);
                     setCurrentPage(1);
                   }} 
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-gray-800 bg-slate-50 dark:bg-gray-800 text-[10px] sm:text-xs dark:text-white outline-none focus:ring-2 focus:ring-teal-500" 
+                  className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-medium dark:text-slate-200 outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all" 
                 />
               </div>
             </div>
           )}
-        </div>
 
-        {/* DATA DISPLAY: TABLE (MD+) & CARDS (SM) */}
-        <div className="w-full bg-white dark:bg-gray-900 rounded-3xl sm:rounded-[2.5rem] border border-slate-200 dark:border-gray-800 shadow-xl overflow-hidden mb-12">
-          {/* DESKTOP TABLE */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-slate-50/50 dark:bg-gray-800/40 border-b border-slate-100 dark:border-gray-800 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  <th className="px-8 py-6">ID / Date</th>
-                  <th className="px-8 py-6">Student</th>
-                  <th className="px-8 py-6">TXN ID</th>
-                  <th className="px-8 py-6">Method</th>
-                  <th className="px-8 py-6">Status</th>
-                  <th className="px-8 py-6">Amount</th>
-                  {/* <th className="px-8 py-6 text-right">Actions</th> */}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50 dark:divide-gray-800">
-                {loading ? (
-                  <tr><td colSpan="7" className="py-24 text-center"><div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-teal-500 border-t-transparent"></div></td></tr>
-                ) : payments.length === 0 ? (
-                  <tr><td colSpan="7" className="py-24 text-center text-slate-500">No payments found</td></tr>
-                ) : (
-                  payments.map(pay => (
-                    <tr key={pay.id} className="group hover:bg-slate-50/50 dark:hover:bg-gray-800/20 transition-all">
-                      <td className="px-8 py-5">
-                        <div className="text-sm font-bold dark:text-white">#{pay.id}</div>
-                        <div className="text-[10px] text-slate-400 font-medium">{pay.formatted_date}</div>
-                      </td>
-                      <td className="px-8 py-5">
-                        <div className="font-bold text-slate-800 dark:text-gray-200 text-sm truncate max-w-37.5">{pay.student.name}</div>
-                        <div className="text-[10px] text-slate-400 truncate max-w-37.5">{pay.student.email}</div>
-                      </td>
-                      <td className="px-8 py-5 font-mono text-[11px] font-bold text-slate-600 dark:text-slate-400">{pay.transaction_id}</td>
-                      <td className="px-8 py-5 text-xs font-bold text-slate-600 dark:text-gray-400">{pay.method}</td>
-                      <td className="px-8 py-5">{getStatusBadge(pay.status)}</td>
-                      <td className="px-8 py-5 font-black text-slate-900 dark:text-white">{formatCAD(pay.amount)}</td>
-                      {/* <td className="px-8 py-5 text-right">
-                        <button 
-                          onClick={() => window.open(`/receipts/${pay.id}`, '_blank')}
-                          className="p-2 text-indigo-600 hover:bg-indigo-500 hover:text-white rounded-xl transition-all border border-indigo-50 dark:border-indigo-900/30 active:scale-95"
-                          title="View Receipt"
-                        >
-                          <FileText size={16}/>
-                        </button>
-                      </td> */}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          {/* DATA DISPLAY: TABLE (MD+) & CARDS (SM) */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden mb-8">
+            {/* DESKTOP TABLE */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                    <th className="px-6 py-4 text-sm font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">ID / Date</th>
+                    <th className="px-6 py-4 text-sm font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Student</th>
+                    <th className="px-6 py-4 text-sm font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Transaction ID</th>
+                    <th className="px-6 py-4 text-sm font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Method</th>
+                    <th className="px-6 py-4 text-sm font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Status</th>
+                    <th className="px-6 py-4 text-sm font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Amount</th>
+                    <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {loading ? (
+                    <tr><td colSpan="7" className="py-16 text-center"><div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-teal-500 border-t-transparent"></div></td></tr>
+                  ) : payments.length === 0 ? (
+                    <tr><td colSpan="7" className="py-16 text-center text-slate-500">No payments found</td></tr>
+                  ) : (
+                    payments.map(pay => (
+                      <tr key={pay.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors group">
+                        <td className="px-6 py-5">
+                          <div className="text-md font-bold text-slate-800 dark:text-white">#{pay.id}</div>
+                          <div className="text-sm text-slate-500 mt-0.5">{pay.formatted_date}</div>
+                        </td>
+                        <td className="px-6 py-5">
+                          <div className="text-md font-semibold text-slate-800 dark:text-white">{pay.student.name}</div>
+                          <div className="text-sm text-slate-500 mt-0.5">{pay.student.email}</div>
+                        </td>
+                        <td className="px-6 py-5">
+                          <span className="text-md font-mono font-medium text-slate-600 dark:text-slate-400">{pay.transaction_id}</span>
+                        </td>
+                        <td className="px-6 py-5">
+                          <span className="text-md font-medium text-slate-600 dark:text-slate-400">{pay.method}</span>
+                        </td>
+                        <td className="px-6 py-5">
+                          {getStatusBadge(pay.status)}
+                        </td>
+                        <td className="px-6 py-5">
+                          <span className="text-md font-bold text-teal-600 dark:text-teal-400">{formatCAD(pay.amount)}</span>
+                        </td>
+                        <td className="px-6 py-5 text-center">
+                          <button 
+                            onClick={() => handleViewPayment(pay)}
+                            className="p-2 text-slate-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-lg transition-all"
+                            title="View Payment Details"
+                          >
+                            <ScanEye size={20} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-          {/* MOBILE CARDS */}
-          <div className="md:hidden divide-y divide-slate-100 dark:divide-gray-800">
-             {loading ? (
-               <div className="py-20 text-center"><div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-teal-500 border-t-transparent"></div></div>
-             ) : payments.length === 0 ? (
-               <div className="py-20 text-center text-slate-500">No payments found</div>
-             ) : (
-               payments.map(pay => (
-                 <div key={pay.id} className="p-4 space-y-3">
+            {/* MOBILE CARDS */}
+            <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+              {loading ? (
+                <div className="py-12 text-center"><div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-teal-500 border-t-transparent"></div></div>
+              ) : payments.length === 0 ? (
+                <div className="py-12 text-center text-slate-500">No payments found</div>
+              ) : (
+                payments.map(pay => (
+                  <div key={pay.id} className="p-5 space-y-3">
                     <div className="flex justify-between items-start">
                       <div>
-                        <div className="text-[10px] font-bold text-slate-400 uppercase">#{pay.id} • {pay.formatted_date}</div>
-                        <div className="font-bold text-slate-900 dark:text-white">{pay.student.name}</div>
-                        <div className="text-[9px] text-slate-500">{pay.student.email}</div>
+                        <div className="text-xs font-mono text-slate-400">#{pay.id} • {pay.formatted_date}</div>
+                        <div className="text-base font-bold text-slate-800 dark:text-white mt-1">{pay.student.name}</div>
+                        <div className="text-xs text-slate-500 mt-0.5">{pay.student.email}</div>
                       </div>
                       <div className="text-right">
-                        <div className="font-black text-teal-600">{formatCAD(pay.amount)}</div>
-                        <div className="text-[9px] font-bold text-slate-400 uppercase mt-1">{pay.method}</div>
+                        <div className="text-lg font-bold text-teal-600 dark:text-teal-400">{formatCAD(pay.amount)}</div>
+                        <div className="text-xs font-semibold text-slate-500 uppercase mt-0.5">{pay.method}</div>
                       </div>
                     </div>
-                    
                     <div className="flex justify-between items-center">
-                      <div className="text-[10px] font-mono bg-slate-100 dark:bg-gray-800 p-2 rounded-lg text-slate-500 dark:text-slate-400 truncate flex-1 mr-2">
+                      <div className="text-xs font-mono bg-slate-50 dark:bg-slate-800 p-2 rounded-lg text-slate-600 dark:text-slate-400 truncate flex-1 mr-2">
                         {pay.transaction_id}
                       </div>
                       {getStatusBadge(pay.status)}
                     </div>
-                    
                     <div className="flex justify-end">
                       <button 
-                        onClick={() => window.open(`/receipts/${pay.id}`, '_blank')}
-                        className="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 rounded-lg text-[10px] font-black uppercase flex items-center justify-center gap-2 border border-indigo-100 dark:border-indigo-900/40"
+                        onClick={() => handleViewPayment(pay)}
+                        className="w-full py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-teal-600 hover:text-white text-slate-700 dark:text-slate-200 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2"
                       >
-                        <FileText size={12}/> View Receipt
+                        <ScanEye size={18} /> View Details
                       </button>
                     </div>
-                 </div>
-               ))
-             )}
-          </div>
-
-          {/* Pagination */}
-          <div className="p-4 sm:p-8 border-t border-slate-50 dark:border-gray-800 flex justify-center">
-            <Pagination 
-              currentPage={currentPage} 
-              totalItems={totalItems} 
-              itemsPerPage={limit} 
-              onPageChange={handlePageChange} 
-            />
-          </div>
-        </div>
-
-        {/* Export Summary */}
-        <div className="w-full bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/20 dark:to-gray-900 p-6 rounded-3xl border border-indigo-100 dark:border-indigo-900/40">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 bg-indigo-100 dark:bg-indigo-900/40 rounded-2xl flex items-center justify-center">
-              <Download size={20} className="text-indigo-600" />
+                  </div>
+                ))
+              )}
             </div>
-            <div>
-              <h3 className="text-sm font-black text-indigo-600 uppercase tracking-wider">Export Payment Data</h3>
-              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                Click the download button to export all payments matching your current filters as a CSV file.
-                {filterDate === 'range' && startDate && endDate && (
-                  <span className="block mt-1 font-bold">
-                    Exporting data from {new Date(startDate).toLocaleDateString()} to {new Date(endDate).toLocaleDateString()}
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-        </div>
 
-{/* //template  */}
-{/* Email Template Editor Section */}
-<div className="w-full mt-8">
-  <div className="flex items-center justify-between mb-4">
-    <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-      <Mail size={20} className="text-indigo-600" />
-      Payment Receipt Email Template
-    </h3>
-    <button
-      onClick={() => setShowTemplateEditor(!showTemplateEditor)}
-      className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-indigo-700 transition"
-    >
-      {showTemplateEditor ? 'Hide Editor' : 'Edit Template'}
-    </button>
-  </div>
-
-  {showTemplateEditor && (
-    <div className="w-full bg-white dark:bg-gray-900 rounded-3xl border border-slate-200 dark:border-gray-800 shadow-xl overflow-hidden">
-      {templateLoading ? (
-        <div className="p-12 text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent"></div>
-        </div>
-      ) : selectedTemplate ? (
-        <form onSubmit={handleUpdateTemplate} className="p-6 space-y-6">
-          {/* Template Info */}
-          <div className="flex items-center justify-between p-4 bg-indigo-50 dark:bg-indigo-950/20 rounded-xl">
-            <div>
-              <p className="text-xs font-black text-indigo-600 uppercase tracking-wider">Current Template</p>
-              <p className="text-sm font-bold text-slate-900 dark:text-white mt-1">{selectedTemplate.name}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Available Placeholders</p>
-              <div className="flex gap-2 mt-1">
-                {['{student_name}', '{amount}', '{course_name}', '{transaction_id}', '{remaining_balance}'].map(tag => (
-                  <span key={tag} className="px-2 py-1 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded text-[8px] font-mono">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Subject Line */}
-          <div>
-            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">
-              Email Subject
-            </label>
-            <input
-              type="text"
-              value={templateForm.subject}
-              onChange={(e) => setTemplateForm({...templateForm, subject: e.target.value})}
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-gray-800 bg-slate-50 dark:bg-gray-800 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500"
-              required
-            />
-          </div>
-
-          {/* Email Body */}
-          <div>
-            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">
-              Email Body (HTML supported)
-            </label>
-            <textarea
-              value={templateForm.email_body}
-              onChange={(e) => setTemplateForm({...templateForm, email_body: e.target.value})}
-              rows="10"
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-gray-800 bg-slate-50 dark:bg-gray-800 text-sm font-mono outline-none focus:ring-2 focus:ring-indigo-500"
-              required
-            />
-          </div>
-
-          {/* SMS Body */}
-          <div>
-            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">
-              SMS Body (Optional)
-            </label>
-            <textarea
-              value={templateForm.sms_body}
-              onChange={(e) => setTemplateForm({...templateForm, sms_body: e.target.value})}
-              rows="3"
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-gray-800 bg-slate-50 dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          {/* Preview */}
-          <div className="p-4 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20 rounded-xl">
-            <p className="text-[9px] font-black text-indigo-600 uppercase tracking-wider mb-2">Live Preview</p>
-            <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-indigo-100 dark:border-indigo-900/40">
-              <p className="text-xs font-bold text-indigo-600 mb-2">{templateForm.subject.replace('{transaction_id}', 'TXN-12345')}</p>
-              <div className="text-sm text-slate-600 dark:text-slate-400 prose prose-sm max-w-none"
-                dangerouslySetInnerHTML={{
-                  __html: templateForm.email_body
-                    .replace(/{student_name}/g, 'John Doe')
-                    .replace(/{amount}/g, '$150.00')
-                    .replace(/{course_name}/g, 'Full G License Bundle')
-                    .replace(/{transaction_id}/g, 'TXN-12345')
-                    .replace(/{remaining_balance}/g, '$350.00')
-                }}
+            {/* Pagination */}
+            <div className="p-5 border-t border-slate-200 dark:border-slate-800 flex justify-center">
+              <Pagination 
+                currentPage={currentPage} 
+                totalItems={totalItems} 
+                itemsPerPage={limit} 
+                onPageChange={handlePageChange} 
               />
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-gray-800">
-            <button
-              type="button"
-              onClick={() => setShowTemplateEditor(false)}
-              className="px-6 py-3 rounded-xl border border-slate-200 dark:border-gray-800 text-slate-600 dark:text-slate-400 text-xs font-black uppercase tracking-wider hover:bg-slate-100 transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={templateUpdateLoading}
-              className="px-6 py-3 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-indigo-700 transition disabled:opacity-50 flex items-center gap-2"
-            >
-              {templateUpdateLoading ? (
-                <>
-                  <RefreshCw size={14} className="animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                'Update Template'
-              )}
-            </button>
-          </div>
-        </form>
-      ) : (
-        <div className="p-12 text-center">
-          <p className="text-slate-500">No payment receipt template found. Please create one first.</p>
-        </div>
-      )}
-    </div>
-  )}
-</div>
+          
 
+          {/* Template Editor Section */}
+          <div className="mt-8">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                <Mail size={18} className="text-teal-500" />
+                Payment Receipt Email Template
+              </h3>
+              <button
+                onClick={() => setShowTemplateEditor(!showTemplateEditor)}
+                className="px-4 py-2 bg-teal-600 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-teal-700 transition"
+              >
+                {showTemplateEditor ? 'Hide Editor' : 'Edit Template'}
+              </button>
+            </div>
+
+            {showTemplateEditor && (
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                {templateLoading ? (
+                  <div className="p-12 text-center">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-teal-500 border-t-transparent"></div>
+                  </div>
+                ) : selectedTemplate ? (
+                  <form onSubmit={handleUpdateTemplate} className="p-6 space-y-6">
+                    {/* Template Info */}
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-teal-50 dark:bg-teal-950/20 rounded-xl gap-4">
+                      <div>
+                        <p className="text-[10px] font-bold text-teal-600 uppercase tracking-wider">Current Template</p>
+                        <p className="text-sm font-bold text-slate-900 dark:text-white mt-1">{selectedTemplate.name}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Available Placeholders</p>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {['{student_name}', '{amount}', '{course_name}', '{transaction_id}', '{remaining_balance}'].map(tag => (
+                            <span key={tag} className="px-2 py-1 bg-teal-100 dark:bg-teal-900/40 text-teal-600 dark:text-teal-400 rounded text-[8px] font-mono">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Subject Line */}
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                        Email Subject
+                      </label>
+                      <input
+                        type="text"
+                        value={templateForm.subject}
+                        onChange={(e) => setTemplateForm({...templateForm, subject: e.target.value})}
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-medium outline-none focus:ring-2 focus:ring-teal-500"
+                        required
+                      />
+                    </div>
+
+                    {/* Email Body */}
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                        Email Body (HTML supported)
+                      </label>
+                      <textarea
+                        value={templateForm.email_body}
+                        onChange={(e) => setTemplateForm({...templateForm, email_body: e.target.value})}
+                        rows="10"
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-mono outline-none focus:ring-2 focus:ring-teal-500"
+                        required
+                      />
+                    </div>
+
+                    {/* SMS Body */}
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                        SMS Body (Optional)
+                      </label>
+                      <textarea
+                        value={templateForm.sms_body}
+                        onChange={(e) => setTemplateForm({...templateForm, sms_body: e.target.value})}
+                        rows="3"
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm outline-none focus:ring-2 focus:ring-teal-500"
+                      />
+                    </div>
+
+                    {/* Preview */}
+                    <div className="p-4 bg-gradient-to-r from-teal-50 to-indigo-50 dark:from-teal-950/20 dark:to-indigo-950/20 rounded-xl">
+                      <p className="text-[9px] font-bold text-teal-600 uppercase tracking-wider mb-2">Live Preview</p>
+                      <div className="bg-white dark:bg-slate-900 p-4 rounded-lg border border-teal-100 dark:border-teal-900/40">
+                        <p className="text-xs font-bold text-teal-600 mb-2">
+                          {templateForm.subject.replace(/{transaction_id}/g, 'TXN-12345')}
+                        </p>
+                        <div className="text-sm text-slate-600 dark:text-slate-400 prose prose-sm max-w-none"
+                          dangerouslySetInnerHTML={{
+                            __html: templateForm.email_body
+                              .replace(/{student_name}/g, 'John Doe')
+                              .replace(/{amount}/g, '$150.00')
+                              .replace(/{course_name}/g, 'Full G License Bundle')
+                              .replace(/{transaction_id}/g, 'TXN-12345')
+                              .replace(/{remaining_balance}/g, '$350.00')
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => setShowTemplateEditor(false)}
+                        className="px-6 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-xs font-bold uppercase tracking-wider hover:bg-slate-100 transition"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={templateUpdateLoading}
+                        className="px-6 py-2.5 bg-teal-600 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-teal-700 transition disabled:opacity-50 flex items-center gap-2"
+                      >
+                        {templateUpdateLoading ? (
+                          <>
+                            <RefreshCw size={14} className="animate-spin" />
+                            Updating...
+                          </>
+                        ) : (
+                          'Update Template'
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="p-12 text-center">
+                    <p className="text-slate-500">No payment receipt template found. Please create one first.</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
+
+      {/* Payment Details Modal */}
+      {isModalOpen && selectedPayment && (
+        <PaymentDetailsModal 
+          payment={selectedPayment}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedPayment(null);
+          }}
+        />
+      )}
     </div>
   );
 };

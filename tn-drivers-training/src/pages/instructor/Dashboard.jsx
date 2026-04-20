@@ -1,132 +1,163 @@
+
+//08/04
+
 import React, { useState, useEffect } from "react";
-import { 
-  Users, ClipboardCheck, Award, Clock, MapPin, 
-  ChevronRight, Activity, Calendar, Car, Phone, Mail,
-  Loader2, AlertCircle
+import { Link } from "react-router-dom";
+import {
+  Users, ClipboardCheck, CheckCircle, Clock, MapPin,
+  ChevronRight, Calendar, Car, Loader2, AlertCircle,
+  Star, Bell, DollarSign, TrendingUp, Sparkles,
+  ShieldCheck, Zap, Award, BookOpen, Target, Activity,
+  BarChart3, PieChart, CalendarDays, UserCheck, GraduationCap,
+  ArrowUpRight
 } from "lucide-react";
 import axios from "axios";
-import { Link } from "react-router-dom";
 
+// ================= API CONFIG =================
 const API_URL = "http://localhost:8000/api";
 
+// ================= STYLES =================
+const tooltipStyle = {
+  backgroundColor: '#1e293b',
+  border: 'none',
+  borderRadius: '12px',
+  fontSize: '13px',
+  color: '#ffffff',
+  padding: '8px 12px',
+  boxShadow: '0 8px 20px rgba(0,0,0,0.2)'
+};
+
+// ================= KPI CARD =================
+const MetricCard = ({ title, value, icon, colorClass, sub, growth }) => {
+  const isPositiveGrowth = growth && growth > 0;
+  
+  return (
+    <div className="group relative overflow-hidden bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-md transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 hover:scale-105">
+      <div className="absolute inset-0 bg-gradient-to-br from-teal-50 via-transparent to-emerald-50 dark:from-teal-900/20 dark:via-transparent dark:to-emerald-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+      <div className="absolute -inset-1 bg-gradient-to-r from-teal-200/30 to-emerald-200/30 dark:from-teal-500/10 dark:to-emerald-500/10 blur-xl group-hover:blur-2xl transition-all duration-500"></div>
+      
+      <div className="relative z-10">
+        <div className="flex items-center justify-between mb-2 sm:mb-3">
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-teal-400 to-emerald-400 rounded-xl blur-md opacity-0 group-hover:opacity-50 transition-opacity duration-300"></div>
+            <div className={`relative w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center ${colorClass} shadow-md group-hover:scale-110 group-hover:shadow-lg transition-all duration-300`}>
+              {React.cloneElement(icon, { size: 18, strokeWidth: 1.8 })}
+            </div>
+          </div>
+          {growth !== undefined && (
+            <div className={`flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[0.55rem] sm:text-xs font-bold font-mono transition-all duration-300 group-hover:scale-105 ${
+              isPositiveGrowth 
+                ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
+                : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
+            }`}>
+              {isPositiveGrowth ? <TrendingUp size={10} /> : <TrendingUp size={10} className="rotate-180" />}
+              {isPositiveGrowth ? '+' : ''}{growth}%
+            </div>
+          )}
+        </div>
+        
+        <p className="text-[0.6rem] sm:text-xs font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
+          {title}
+        </p>
+        <h3 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white group-hover:bg-gradient-to-r group-hover:from-teal-600 group-hover:to-emerald-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">
+          {value}
+        </h3>
+        {sub && (
+          <p className="text-[0.55rem] sm:text-xs text-slate-400 dark:text-slate-500 mt-2 font-mono group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors">
+            {sub}
+          </p>
+        )}
+      </div>
+      
+      <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+        <Sparkles size={10} className="text-teal-400/60" />
+      </div>
+    </div>
+  );
+};
+
+// ================= SCHEDULE ROW =================
+const ScheduleRow = ({ time, student, task, status, location }) => (
+  <div className="group relative overflow-hidden p-3 sm:p-4 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-700 hover:border-teal-200 dark:hover:border-teal-800 transition-all duration-300 hover:shadow-lg hover:scale-[1.02] cursor-pointer">
+    <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 xs:gap-3">
+      <div className="flex items-start xs:items-center gap-3">
+        <div className="relative">
+          <span className="relative text-[10px] sm:text-xs md:text-md font-mono font-bold text-teal-600 dark:text-teal-400 shrink-0 w-[88px] sm:w-24 pt-0.5 xs:pt-0 group-hover:scale-[1.2] transition-colors">
+            {time}
+          </span>
+        </div>
+        <div className="hidden xs:block h-7 w-px bg-slate-200 dark:bg-slate-700 shrink-0" />
+        <div className="min-w-0">
+          <p className="text-xs sm:text-sm lg:text-md font-semibold text-slate-800 dark:text-white group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors truncate">
+            {student}
+          </p>
+          <p className="text-[10px] sm:text-xs md:text-md font-medium text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+            {task} • <span className="text-teal-500 font-semibold group-hover:text-teal-600 transition-colors">{location}</span>
+          </p>
+        </div>
+      </div>
+      <span className={`self-start xs:self-center shrink-0 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-2 sm:px-2.5 py-1 rounded-full transition-all duration-300 group-hover:scale-105 ${
+        status === "Completed"
+          ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+          : status === "High Priority"
+          ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800"
+          : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 group-hover:border-teal-300"
+      }`}>
+        {status}
+      </span>
+    </div>
+  </div>
+);
+
+// ================= CHART CARD =================
+const ChartCard = ({ title, icon, children }) => {
+  return (
+    <div className="group relative overflow-hidden bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-md transition-all duration-500 hover:shadow-2xl hover:-translate-y-1">
+      <div className="absolute inset-0 bg-gradient-to-br from-teal-50/30 via-transparent to-emerald-50/30 dark:from-teal-900/10 dark:via-transparent dark:to-emerald-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+      <div className="relative z-10">
+        <div className="flex items-center gap-2 mb-3 sm:mb-4">
+          <div className="p-1 sm:p-1.5 rounded-lg bg-teal-100 dark:bg-teal-900/30 group-hover:bg-teal-200 dark:group-hover:bg-teal-900/50 transition-all duration-300 group-hover:scale-110">
+            {React.cloneElement(icon, { size: 12, className: "text-teal-600 group-hover:text-teal-500 transition-colors" })}
+          </div>
+          <h2 className="text-[0.65rem] sm:text-sm font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
+            {title}
+          </h2>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+// ================= MAIN DASHBOARD =================
 const InstructorDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [dashboardData, setDashboardData] = useState({
-    totalStudents: 0,
-    todaySessions: [],
-    upcomingSessions: [],
-    testsLogged: 0,
-    passRate: 0,
-    totalHours: 0,
-    assignedCar: null,
-    instructorName: '',
-    instructorLocation: '',
-    recentStudents: []
+    instructor: { name: '', location: '' },
+    metrics: { total_students: 0, tests_logged: 0, pass_rate: 0, completed_students: 0 },
+    today_sessions: [],
+    upcoming_sessions: [],
+    recent_students: [],
+    assigned_car: null
   });
 
   const token = localStorage.getItem('access_token');
 
-  // Create axios instance with auth headers
-  const api = axios.create({
-    baseURL: API_URL,
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Accept': 'application/json',
-      'Content-Type': 'application/json'
-    }
-  });
-
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      
-      // Fetch all required data in parallel
-      const [
-        userRes,
-        myStudentsRes,
-        manifestRes,
-        historyRes,
-        assignedCarRes
-      ] = await Promise.all([
-        api.get('/user').catch(err => {
-          console.error("Error fetching user:", err);
-          return { data: { name: 'Instructor' } };
-        }),
-        api.get('/instructor/my-students').catch(err => {
-          console.error("Error fetching students:", err);
-          return { data: { data: [] } };
-        }),
-        api.get('/instructor/manifest').catch(err => {
-          console.error("Error fetching manifest:", err);
-          return { data: [] };
-        }),
-        api.get('/instructor/history').catch(err => {
-          console.error("Error fetching history:", err);
-          return { data: [] };
-        }),
-        api.get('/my-assigned-car').catch(err => {
-          console.error("Error fetching assigned car:", err);
-          return { data: { data: null } };
-        })
-      ]);
-
-      // Process user data
-      const userData = userRes.data;
-      const instructorName = userData.name || 'Instructor';
-      
-      // Process students data
-      const students = myStudentsRes.data?.data || myStudentsRes.data || [];
-      const totalStudents = students.length;
-      
-      // Process manifest (upcoming sessions)
-      const manifest = manifestRes.data || [];
-      
-      // Process history for tests and pass rate
-      const history = historyRes.data || [];
-      const testsLogged = history.length;
-      
-      // Calculate pass rate (present sessions)
-      const passedTests = history.filter(s => s.attendance?.status === 'present').length;
-      const passRate = testsLogged > 0 ? Math.round((passedTests / testsLogged) * 100) : 0;
-      
-      // Calculate total hours (assuming each session is 1 hour)
-      const totalHours = history.length;
-      
-      // Get today's sessions
-      const today = new Date().toISOString().split('T')[0];
-      const todaySessions = manifest.filter(s => s.date === today);
-      
-      // Get upcoming sessions (future dates)
-      const upcomingSessions = manifest.filter(s => s.date > today).slice(0, 5);
-      
-      // Get recent students (last 5)
-      const recentStudents = students.slice(0, 5).map(s => ({
-        id: s.id,
-        name: s.name || s.user?.name || 'Student',
-        email: s.email || s.user?.email || '',
-        progress: s.progress || 0
-      }));
-
-      // Process assigned car
-      const assignedCar = assignedCarRes.data?.data || null;
-
-      setDashboardData({
-        totalStudents,
-        todaySessions,
-        upcomingSessions,
-        testsLogged,
-        passRate,
-        totalHours,
-        assignedCar,
-        instructorName,
-        instructorLocation: students[0]?.location || 'Main Branch',
-        recentStudents
+      const response = await axios.get(`${API_URL}/instructor/dashboard`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
-
+      if (response.data.success) {
+        setDashboardData(response.data.data);
+      } else {
+        setError("Failed to load dashboard data");
+      }
     } catch (err) {
       console.error("Error fetching dashboard data:", err);
-      setError("Failed to load dashboard data");
+      setError(err.response?.data?.message || "Failed to load dashboard data");
     } finally {
       setLoading(false);
     }
@@ -136,278 +167,264 @@ const InstructorDashboard = () => {
     fetchDashboardData();
   }, []);
 
+  // ================= LOADING STATE =================
   if (loading) {
     return (
-      <div className="flex-1 bg-slate-50 dark:bg-gray-950 min-h-screen font-['Lexend']">
-        <div className="max-w-7xl mx-auto p-4 md:p-10 flex items-center justify-center h-96">
-          <div className="text-center">
-            <Loader2 className="animate-spin text-indigo-600 mx-auto mb-4" size={48} />
-            <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Loading your dashboard...</p>
-          </div>
+      <div className="flex-1 flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+        <div className="text-center">
+          <Loader2 className="animate-spin text-teal-500 mx-auto mb-4" size={40} />
+          <p className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-slate-500">Loading dashboard…</p>
         </div>
       </div>
     );
   }
 
+  // ================= ERROR STATE =================
   if (error) {
     return (
-      <div className="flex-1 bg-slate-50 dark:bg-gray-950 min-h-screen font-['Lexend']">
-        <div className="max-w-7xl mx-auto p-4 md:p-10 flex items-center justify-center h-96">
-          <div className="text-center">
-            <AlertCircle className="text-red-500 mx-auto mb-4" size={48} />
-            <p className="text-sm font-medium text-red-600 mb-4">{error}</p>
-            <button 
-              onClick={fetchDashboardData}
-              className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold"
-            >
-              Try Again
-            </button>
-          </div>
+      <div className="flex-1 flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+        <div className="text-center px-4">
+          <AlertCircle className="text-red-500 mx-auto mb-4" size={40} />
+          <p className="text-sm font-medium text-red-600 mb-4">{error}</p>
+          <button onClick={fetchDashboardData} className="px-6 py-2 bg-teal-500 text-white rounded-lg text-sm font-medium hover:bg-teal-600 transition-all">
+            Try Again
+          </button>
         </div>
       </div>
     );
   }
 
+  const { instructor, metrics, today_sessions, upcoming_sessions, recent_students, assigned_car } = dashboardData;
+
+  // Map API pass_rate to completion_rate for display
+  const completionRate = metrics.pass_rate;
+
   return (
-    <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
-      
-      {/* 1. DASHBOARD HEADER */}
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white uppercase italic leading-none">
-          Welcome back, <span className="text-[#008B8B]">{dashboardData.instructorName}</span>
-        </h1>
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 mt-1">
-          Terra Nova Training Systems • <span className="text-[#008B8B] font-bold">{dashboardData.instructorLocation}</span>
-        </p>
-      </div>
-
-      {/* 2. METRICS GRID */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <MetricCard 
-          title="Total Students" 
-          value={dashboardData.totalStudents} 
-          icon={<Users />} 
-          color="teal" 
-          sub="Active Students" 
-        />
-        <MetricCard 
-          title="Tests Logged" 
-          value={dashboardData.testsLogged} 
-          icon={<ClipboardCheck />} 
-          color="indigo" 
-          sub="All Time" 
-        />
-        <MetricCard 
-          title="Pass Rate" 
-          value={`${dashboardData.passRate}%`} 
-          icon={<Award />} 
-          color="emerald" 
-          sub={dashboardData.passRate >= 80 ? 'Excellent' : 'Room for Improvement'} 
-        />
-        <MetricCard 
-          title="Hours" 
-          value={dashboardData.totalHours} 
-          icon={<Activity />} 
-          color="orange" 
-          sub="Behind the wheel" 
-        />
-      </div>
-
-      {/* 3. ASSIGNED CAR SECTION */}
-      {dashboardData.assignedCar && (
-        <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 p-6 rounded-[2.5rem] text-white shadow-lg">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-4">
-              <Car size={32} className="opacity-80" />
-              <div>
-                <p className="text-xs font-black uppercase tracking-widest opacity-80 mb-1">Assigned Vehicle</p>
-                <h3 className="text-xl font-bold">{dashboardData.assignedCar.car_name} • {dashboardData.assignedCar.number_plate}</h3>
-                <p className="text-sm opacity-80 mt-1">Odometer: {dashboardData.assignedCar.odometer} KM</p>
-              </div>
-            </div>
-            <Link 
-              to="/instructor/expenses" 
-              className="px-6 py-3 bg-white text-indigo-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-100 transition-all"
-            >
-              View Details
-            </Link>
-          </div>
-        </div>
-      )}
-
-      {/* 4. MAIN CONTENT GRID */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-10">
+    <div className="w-full min-h-screen p-3 sm:p-4 md:p-6 lg:p-8 bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 transition-colors overflow-x-hidden">
+      <div className="mx-auto space-y-4 sm:space-y-6 md:space-y-8">
         
-        <div className="lg:col-span-2 space-y-6">
-          
-          {/* TODAY'S AGENDA */}
-          <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800 flex justify-between items-center bg-slate-50/30 dark:bg-slate-950/20">
-              <div className="flex items-center gap-3">
-                <Calendar size={16} className="text-[#008B8B]" />
-                <h2 className="text-[10px] font-black uppercase tracking-widest text-slate-400 italic">Today's Agenda</h2>
+        {/* ================= HEADER ================= */}
+        <header className="rounded-2xl bg-gradient-to-r from-teal-600/10 via-emerald-600/5 to-teal-600/10 dark:from-teal-500/5 dark:via-emerald-500/5 p-4 sm:p-6 md:p-8 transition-all duration-300 hover:shadow-xl hover:scale-[1.01]">
+          <div className="text-center lg:text-left">
+            <div className="flex items-center justify-center lg:justify-start gap-2 sm:gap-3 mb-2">
+              <ShieldCheck className="text-teal-500 transition-all duration-300 hover:scale-110 hover:rotate-12" size={24} />
+              <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight">
+                <span className="text-slate-800 dark:text-white">Welcome back, </span>
+                <span className="bg-gradient-to-r from-teal-600 to-emerald-600 bg-clip-text text-transparent">{instructor.name}</span>
+              </h1>
+            </div>
+            <p className="text-xs sm:text-sm md:text-base font-mono text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center justify-center lg:justify-start gap-2">
+              <Zap size={12} className="text-teal-500 transition-all duration-300 hover:scale-110" />
+              Terra Nova Training Systems • <span className="text-teal-600 font-semibold">{instructor.location}</span>
+            </p>
+          </div>
+        </header>
+
+        {/* ================= KPI GRID ================= */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+          <MetricCard 
+            title="Total Students" 
+            value={metrics.total_students} 
+            icon={<Users />} 
+            colorClass="bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400"
+            sub="Active Students"
+            // growth omitted (API doesn't provide)
+          />
+          <MetricCard 
+            title="Tests Logged" 
+            value={metrics.tests_logged} 
+            icon={<ClipboardCheck />} 
+            colorClass="bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400"
+            sub="All Time"
+          />
+          <MetricCard 
+            title="Progres Rate" 
+            value={`${completionRate}%`} 
+            icon={<Award />} 
+            colorClass="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400"
+            sub={completionRate >= 80 ? "Excellent Progress" : "Keep Improving"}
+          />
+          <MetricCard 
+    title="Completed Students" 
+    value={metrics.completed_students} 
+    icon={<Award />} 
+    colorClass="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400"
+    sub="Reached 100% progress"
+/>
+        </div>
+
+        {/* ================= ASSIGNED CAR SECTION ================= */}
+        {assigned_car && (
+          <div className="group relative overflow-hidden bg-gradient-to-r from-emerald-500 to-slate-600 rounded-2xl p-4 sm:p-5 shadow-lg transition-all duration-500 hover:shadow-2xl hover:scale-[1.01]">
+            <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            <div className="relative z-10 flex flex-col xs:flex-row items-start xs:items-center justify-between gap-3 sm:gap-4">
+              <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-white/20 rounded-xl blur-md opacity-0 group-hover:opacity-50 transition-opacity duration-300"></div>
+                  <div className="relative w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-xl bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    <Car size={20} className="text-white" />
+                  </div>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] sm:text-xs font-semibold text-white/80 uppercase tracking-wider mb-0.5">Assigned Vehicle</p>
+                  <h3 className="text-sm sm:text-base lg:text-lg font-bold text-white truncate">
+                    {assigned_car.car_name} • {assigned_car.number_plate}
+                  </h3>
+                  <p className="text-xs md:text-md lg:text-lg font-medium text-white/80 mt-0.5">Odometer: {assigned_car.odometer.toLocaleString()} KM</p>
+                </div>
               </div>
-              <Link 
-                to="/instructor/schedule" 
-                className="text-[10px] font-black text-[#008B8B] uppercase tracking-widest hover:underline transition-all active:scale-95"
+              <Link
+                to="/instructor/expenses"
+                className="shrink-0 px-3 sm:px-4 py-2 bg-white text-teal-600 rounded-lg font-semibold text-xs sm:text-sm transition-all duration-300 hover:scale-105 hover:shadow-lg group-hover:bg-slate-50"
               >
-                Full Schedule
+                View Details
               </Link>
             </div>
-            <div className="p-4 md:p-6 space-y-3">
-              {dashboardData.todaySessions.length > 0 ? (
-                dashboardData.todaySessions.map((session, index) => (
-                  <ScheduleRow 
-                    key={index}
-                    time={session.start_time || 'TBD'}
-                    student={session.student?.user?.name || 'Student'}
-                    task={session.schedule?.task_description || 'Driving Lesson'}
-                    status={session.attendance ? 'Completed' : 'Upcoming'}
-                    location={dashboardData.instructorLocation}
-                  />
-                ))
-              ) : (
-                <div className="p-8 text-center">
-                  <p className="text-slate-400 text-sm">No sessions scheduled for today</p>
-                </div>
-              )}
-            </div>
+          </div>
+        )}
+
+        {/* ================= MAIN CONTENT GRID ================= */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          
+          {/* LEFT COLUMN - Sessions */}
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+            
+            {/* Today's Agenda */}
+            <ChartCard title="Today's Agenda" icon={<CalendarDays />}>
+              <div className="space-y-2">
+                {today_sessions.length > 0 ? (
+                  today_sessions.map((s, i) => (
+                    <ScheduleRow 
+                      key={i} 
+                      time={`${s.start_time} – ${s.end_time}`} 
+                      student={s.student_name} 
+                      task={s.task} 
+                      status={s.status} 
+                      location={s.location} 
+                    />
+                  ))
+                ) : (
+                  <div className="py-10 text-center">
+                    <Clock size={40} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
+                    <p className="text-xs sm:text-sm text-slate-500">No sessions today</p>
+                  </div>
+                )}
+              </div>
+            </ChartCard>
+
+            {/* Upcoming Sessions */}
+            <ChartCard title="Upcoming Sessions" icon={<Calendar />}>
+              <div className="space-y-2">
+                {upcoming_sessions.length > 0 ? (
+                  upcoming_sessions.map((s, i) => (
+                    <ScheduleRow 
+                      key={i} 
+                      time={`${s.date} • ${s.start_time}`} 
+                      student={s.student_name} 
+                      task={s.task} 
+                      status="Scheduled" 
+                      location={s.location} 
+                    />
+                  ))
+                ) : (
+                  <div className="py-10 text-center">
+                    <Calendar size={40} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
+                    <p className="text-xs sm:text-sm text-slate-500">No upcoming sessions</p>
+                  </div>
+                )}
+              </div>
+            </ChartCard>
           </div>
 
-          {/* UPCOMING SESSIONS */}
-          <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800">
-              <h2 className="text-[10px] font-black uppercase tracking-widest text-slate-400 italic">Upcoming Sessions</h2>
-            </div>
-            <div className="p-4 md:p-6 space-y-3">
-              {dashboardData.upcomingSessions.length > 0 ? (
-                dashboardData.upcomingSessions.map((session, index) => (
-                  <ScheduleRow 
-                    key={index}
-                    time={`${session.date} ${session.start_time || ''}`}
-                    student={session.student?.user?.name || 'Student'}
-                    task={session.schedule?.task_description || 'Driving Lesson'}
-                    status="Scheduled"
-                    location={dashboardData.instructorLocation}
-                  />
-                ))
-              ) : (
-                <div className="p-8 text-center">
-                  <p className="text-slate-400 text-sm">No upcoming sessions</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+          {/* RIGHT COLUMN - Sidebar */}
+          <div className="space-y-4 sm:space-y-6">
 
-        {/* SIDEBAR - RECENT STUDENTS */}
-        <div className="space-y-6">
-          <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm">
-            <h2 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6 flex items-center gap-2">
-              <Users size={14} className="text-[#008B8B]" /> Recent Students
-            </h2>
-            <div className="space-y-4">
-              {dashboardData.recentStudents.length > 0 ? (
-                dashboardData.recentStudents.map((student, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-colors cursor-pointer">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-sm">
-                        {student.name.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-slate-800 dark:text-white">{student.name}</p>
-                        <p className="text-[9px] text-slate-400">Progress: {student.progress}%</p>
+            {/* Recent Students */}
+            <ChartCard title="Recent Students" icon={<Users />}>
+              <div className="space-y-1">
+                {recent_students.length > 0 ? (
+                  recent_students.map((student, i) => (
+                    <div key={i} className="group/student relative overflow-hidden p-2.5 sm:p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-all duration-300 cursor-pointer hover:scale-[1.02]">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                          <div className="relative">
+                            <div className="absolute inset-0 bg-gradient-to-r from-teal-400 to-emerald-400 rounded-xl blur-md opacity-0 group-hover/student:opacity-50 transition-opacity duration-300"></div>
+                            <div className="relative w-8 h-8 sm:w-10 sm:h-10 shrink-0 rounded-xl bg-gradient-to-br from-teal-100 to-teal-200 dark:from-teal-900/50 dark:to-teal-800/30 text-teal-600 dark:text-teal-400 flex items-center justify-center font-bold text-xs sm:text-sm group-hover/student:scale-110 transition-transform duration-300">
+                              {student.name.charAt(0)}
+                            </div>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-white truncate group-hover/student:text-teal-600 dark:group-hover/student:text-teal-400 transition-colors">
+                              {student.name}
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <div className="w-12 sm:w-16 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-gradient-to-r from-teal-500 to-emerald-500 rounded-full transition-all duration-500 group-hover/student:w-full" 
+                                  style={{ width: `${student.progress}%` }}
+                                />
+                              </div>
+                              <span className="text-[9px] sm:text-[10px] font-mono font-semibold text-slate-500 group-hover/student:text-teal-600 transition-colors">
+                                {student.progress}%
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <ChevronRight size={14} className="text-slate-400 opacity-0 group-hover/student:opacity-100 transition-all duration-300 group-hover/student:translate-x-1" />
                       </div>
                     </div>
-                    <ChevronRight size={16} className="text-slate-400" />
+                  ))
+                ) : (
+                  <div className="py-8 text-center">
+                    <Users size={40} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
+                    <p className="text-xs sm:text-sm text-slate-500">No students yet</p>
                   </div>
-                ))
-              ) : (
-                <p className="text-sm text-slate-400 text-center py-4">No students assigned yet</p>
-              )}
-            </div>
-            <Link 
-              to="/instructor/students" 
-              className="mt-6 w-full py-3 bg-slate-50 dark:bg-slate-800 text-[#008B8B] rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-[#008B8B] hover:text-white transition-all flex items-center justify-center gap-2"
-            >
-              View All Students <ChevronRight size={12} />
-            </Link>
-          </div>
+                )}
+              </div>
+              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <Link to="/instructor/students" className="group/btn relative block text-center text-[10px] sm:text-xs font-semibold text-teal-600 hover:text-teal-700 transition-colors overflow-hidden">
+                  <span className="relative z-10 inline-flex items-center gap-1">
+                    View All Students
+                    <ArrowUpRight size={10} className="group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
+                  </span>
+                  <div className="absolute bottom-0 left-0 w-full h-px bg-teal-600 scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300"></div>
+                </Link>
+              </div>
+            </ChartCard>
 
-          {/* QUICK ACTIONS */}
-          <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/20 dark:to-indigo-900/10 p-6 rounded-[2.5rem] border border-indigo-200 dark:border-indigo-800">
-            <h2 className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-4">Quick Actions</h2>
-            <div className="space-y-3">
-              <Link 
-                to="/instructor/schedule"
-                className="block w-full py-3 px-4 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-xs hover:bg-indigo-600 hover:text-white transition-all"
-              >
-                📅 Mark Attendance
-              </Link>
-              <Link 
-                to="/instructor/expenses"
-                className="block w-full py-3 px-4 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-xs hover:bg-indigo-600 hover:text-white transition-all"
-              >
-                💰 Submit Expense
-              </Link>
-              <Link 
-                to="/instructor/students"
-                className="block w-full py-3 px-4 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-xs hover:bg-indigo-600 hover:text-white transition-all"
-              >
-                👥 View Students
-              </Link>
-            </div>
+            {/* Quick Actions */}
+            <ChartCard title="Quick Actions" icon={<Zap />}>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { to: "/instructor/schedule",      icon: <Calendar size={14} />,   label: "Mark Attendance",    color: "teal" },
+                  { to: "/instructor/expenses",      icon: <DollarSign size={14} />, label: "Submit Expense",     color: "amber" },
+                  { to: "/instructor/students",      icon: <Users size={14} />,      label: "View Students",      color: "indigo" },
+                  { to: "/instructor/notifications", icon: <Bell size={14} />,       label: "Notifications",      color: "purple" },
+                ].map(({ to, icon, label, color }) => {
+                  const colorClasses = {
+                    teal: "bg-teal-50 dark:bg-teal-900/30 text-teal-600 hover:bg-teal-600",
+                    amber: "bg-amber-50 dark:bg-amber-900/30 text-amber-600 hover:bg-amber-600",
+                    indigo: "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 hover:bg-indigo-600",
+                    purple: "bg-purple-50 dark:bg-purple-900/30 text-purple-600 hover:bg-purple-600"
+                  };
+                  return (
+                    <Link
+                      key={to}
+                      to={to}
+                      className={`group/action flex items-center gap-2 sm:gap-3 py-2.5 px-3 sm:px-4 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 rounded-xl text-[11px] sm:text-sm font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg ${colorClasses[color]} hover:text-white`}
+                    >
+                      <span className="shrink-0 transition-transform duration-300 group-hover/action:scale-110">{icon}</span>
+                      <span className="truncate">{label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </ChartCard>
           </div>
         </div>
       </div>
     </div>
   );
 };
-
-// --- HELPER COMPONENTS ---
-
-const MetricCard = ({ title, value, icon, color, sub }) => {
-  const colorClasses = {
-    teal: 'text-teal-600 bg-teal-500/10',
-    indigo: 'text-indigo-600 bg-indigo-500/10',
-    emerald: 'text-emerald-600 bg-emerald-500/10',
-    orange: 'text-orange-600 bg-orange-500/10'
-  };
-
-  return (
-    <div className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${colorClasses[color]} mb-5 group-hover:scale-110 transition-transform`}>
-        {React.cloneElement(icon, { size: 22 })}
-      </div>
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{title}</p>
-      <h3 className="text-3xl font-black text-slate-800 dark:text-white leading-none mb-2 tracking-tighter">{value}</h3>
-      <p className="text-[9px] font-bold text-slate-400 italic uppercase tracking-tighter">{sub}</p>
-    </div>
-  );
-};
-
-const ScheduleRow = ({ time, student, task, status, location }) => (
-  <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 bg-slate-50 dark:bg-slate-800/40 rounded-[2rem] border border-transparent hover:border-[#008B8B]/30 hover:bg-white dark:hover:bg-slate-800 transition-all cursor-pointer group gap-4">
-    <div className="flex items-center gap-6">
-      <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 w-20 uppercase truncate">{time}</span>
-      <div className="h-8 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block" />
-      <div>
-        <p className="text-sm font-bold text-slate-800 dark:text-white group-hover:text-[#008B8B] transition-colors">{student}</p>
-        <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter italic">
-          {task} • <span className="text-[#008B8B] font-bold">{location}</span>
-        </p>
-      </div>
-    </div>
-    <span className={`text-[8px] self-start sm:self-center font-black uppercase px-3 py-1.5 rounded-full ${
-      status === 'High Priority' 
-        ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20' 
-        : status === 'Completed'
-        ? 'bg-emerald-100 text-emerald-700'
-        : 'bg-white dark:bg-slate-900 text-slate-400 border border-slate-100 dark:border-slate-800'
-    }`}>
-      {status}
-    </span>
-  </div>
-);
 
 export default InstructorDashboard;

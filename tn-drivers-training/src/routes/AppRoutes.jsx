@@ -5,6 +5,8 @@ import InstructorLayout from "../layouts/InstructorLayout";
 import LandingPage from "../pages/LandingPage";
 import Login from "../pages/Login";
 import ResetPassword from "../pages/ResetPassword";
+import RegistrationPage from "../pages/RegistrationPage";
+
 
 // Admin Pages
 import Dashboard from "../pages/Dashboard";
@@ -26,6 +28,15 @@ import NotificationPage from "../pages/instructor/NotificationPage";
 import InstructorSchedule from "../pages/instructor/MySchedule";
 import InstructorExpenses from "../pages/instructor/MyExpenses";
 
+//student pages
+import StudentDashboard from "../pages/student/StudentDashboard";
+import StudentLayout from "../layouts/StudentLayout";
+import TestEvaluationPage from "../pages/student/TestEvaluate";
+import StudentNotificationPage from "../pages/student/StudentNotificationPage";
+import MyPackages from "../pages/student/MyPackages";
+import StudentProfile from "../pages/student/StudentProfile";
+
+
 const AppRoutes = () => {
   return (
     <Routes>
@@ -33,30 +44,41 @@ const AppRoutes = () => {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/register" element={<RegistrationPage />} />
+
 
 
       {/* 2. ADMIN ROUTES - Notice path="/admin" added to the parent */}
-      <Route path="/admin" element={<AdminLayout />}>
-        <Route index element={<Dashboard />} />              {/* URL: /admin */}
-        <Route path="students" element={<StudentPage />} />   {/* URL: /admin/students */}
-        <Route path="packages" element={<Packages />} />     {/* URL: /admin/packages */}
-        <Route path="schedule" element={<Schedule />} />     {/* URL: /admin/schedule */}
-        <Route path="payments" element={<Payments />} />     {/* URL: /admin/payments */}
-        <Route path="applications" element={<Application />} /> {/* URL: /admin/applications */}
-        <Route path="instructors" element={<InstructorFleet />} />
-        <Route path="fleet" element={<FleetManagement />} />
-        <Route path="finances" element={<Finances />} />
-        <Route path="settings" element={<Settings />} />
+      <Route element={<AdminLayout />}>
+        <Route path="/Dashboard" element={<Dashboard />} />
+        <Route path="/Students" element={<StudentPage />} />
+        <Route path="/Packages" element={<Packages />} />
+        <Route path="/Schedule" element={<Schedule />} />
+        <Route path="/Payments" element={<Payments />} />
+        <Route path="/Applications" element={<Application />} />
+        <Route path="/Instructors" element={<InstructorFleet />} />
+        <Route path="/Fleet" element={<FleetManagement />} />
+        <Route path="/Finances" element={<Finances />} />
+        <Route path="/Settings" element={<Settings />} />
       </Route>
 
       {/* 3. INSTRUCTOR ROUTES */}
       <Route path="/instructor" element={<InstructorLayout />}>
         <Route index element={<InstructorDashboard />} />    {/* URL: /instructor */}
-        <Route path="students" element={<MyStudents />} />   {/* URL: /instructor/students */}
-        <Route path="notifications" element={<NotificationPage />} />
-        <Route path="schedule" element={<InstructorSchedule />} />
-        <Route path="expenses" element={<InstructorExpenses />} />
+        <Route path="Students" element={<MyStudents />} />   {/* URL: /instructor/students */}
+        <Route path="Notifications" element={<NotificationPage />} />
+        <Route path="Schedule" element={<InstructorSchedule />} />
+        <Route path="Expenses" element={<InstructorExpenses />} />
       </Route>
+
+      <Route path="/student" element={<StudentLayout />}>
+        <Route index element={<StudentDashboard />} />
+        <Route path="test-evaluation" element={<TestEvaluationPage />} />
+        <Route path="notifications" element={<StudentNotificationPage />} />
+        <Route path="mypackage" element={<MyPackages />} />
+        <Route path="profile" element={<StudentProfile />} />
+      </Route>
+
     </Routes>
   );
 };

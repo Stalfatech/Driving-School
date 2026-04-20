@@ -168,7 +168,8 @@ public function download(Request $request)
                 number_format($payment->amount_total, 2),
                 $payment->payment_method,
                 $payment->status,
-                $payment->created_at->format('Y-m-d'),
+                // $payment->created_at->format('Y-m-d'),
+                '="' . $payment->created_at->format('Y-m-d') . '"',
                 $payment->created_at->format('H:i:s')
             ]);
         }

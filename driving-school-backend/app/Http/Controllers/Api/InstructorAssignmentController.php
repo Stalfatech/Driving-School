@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Carbon\Carbon;
 
 class InstructorAssignmentController extends Controller
 {
@@ -89,7 +90,33 @@ public function getActiveManifest()
         'student_location' => $validated['student_location'] ?? 'Main Office',
     ]);
 
-    // YOU MUST RETURN THIS FOR REACT TO SUCCEED
+$assignment->load('schedule'); 
+    
+    
+
+    // Send notification to student
+    $student = Student::with('user')->find($validated['student_id']);
+    $instructor = Instructor::with('user')->find($instructorId);
+
+    if ($student && $student->user) {
+        $data = [
+            'student_name' => $student->user->name,
+            'instructor_name' => $instructor->user->name ?? 'Your Instructor',
+            'date' => $assignment->date,
+            'time' => Carbon::parse($assignment->start_time)->format('h:i A') . ' - ' . Carbon::parse($assignment->end_time)->format('h:i A'),
+            'pickup_location' => $assignment->student_location ?? 'Main Office',
+            'topic' => $assignment->schedule->task_description ?? 'Driving Lesson',
+        ];
+
+        \App\Services\NotificationService::send(
+            'student_new_assignment',
+            $student->user->email,
+            $data,
+            $student->user, // notifiable user
+            true
+        );
+    }
+
     return response()->json([
         'message' => 'Student lesson booked successfully!',
         'data' => $assignment
@@ -115,6 +142,25 @@ public function getActiveManifest()
 
     return response()->json([
         'message' => 'Attendance updated successfully'
+    ]);
+}
+
+//for restoting the marked attendance .
+public function deleteAttendance($id)
+{
+    $assignment = ScheduleAssignment::findOrFail($id);
+    
+    // Verify instructor owns this assignment
+    $instructorId = $this->getInstructorId();
+    if ($assignment->instructor_id !== $instructorId) {
+        return response()->json(['message' => 'Unauthorized'], 403);
+    }
+    
+    $assignment->attendance()->delete();
+    
+    return response()->json([
+        'success' => true,
+        'message' => 'Session restored to active roster'
     ]);
 }
 
@@ -184,12 +230,18 @@ public function deleteEvaluation($id)
 
 
 
-    /**
- * UPDATE EXISTING ASSIGNMENT
- */
+ // UPDATE EXISTING ASSIGNMENT
+
+
+
 public function update(Request $request, $id)
 {
-    $assignment = ScheduleAssignment::findOrFail($id);
+    $assignment = ScheduleAssignment::with(['student.user', 'instructor.user'])->findOrFail($id);
+
+    $oldDate = $assignment->date;
+    $oldStart = $assignment->start_time;
+    $oldEnd = $assignment->end_time;
+    $oldLocation = $assignment->student_location;
 
     $validated = $request->validate([
         'date'             => 'required|date',
@@ -197,18 +249,35 @@ public function update(Request $request, $id)
         'end_time'         => 'required',
         'student_location' => 'nullable|string',
     ]);
+    $assignment->update($validated);
 
-    $assignment->update([
-        'date'             => $validated['date'],
-        'start_time'       => $validated['start_time'],
-        'end_time'         => $validated['end_time'],
-        'student_location' => $validated['student_location'],
-    ]);
+    // Notify student if date/time/location changed
+    if ($oldDate != $assignment->date || $oldStart != $assignment->start_time || $oldEnd != $assignment->end_time || $oldLocation != $assignment->student_location) {
+        $student = $assignment->student;
+        $instructor = $assignment->instructor;
 
-    return response()->json([
-        'message' => 'Booking updated successfully!',
-        'data' => $assignment
-    ]);
+        if ($student && $student->user) {
+            $data = [
+                'student_name' => $student->user->name,
+                'instructor_name' => $instructor->user->name ?? 'Your Instructor',
+                'old_date' => $oldDate,
+                'old_time' => Carbon::parse($oldStart)->format('h:i A') . ' - ' . Carbon::parse($oldEnd)->format('h:i A'),
+                'new_date' => $assignment->date,
+                'new_time' => Carbon::parse($assignment->start_time)->format('h:i A') . ' - ' . Carbon::parse($assignment->end_time)->format('h:i A'),
+                'pickup_location' => $assignment->student_location ?? 'Main Office',
+            ];
+
+            \App\Services\NotificationService::send(
+                'student_assignment_updated',
+                $student->user->email,
+                $data,
+                $student->user,
+                true
+            );
+        }
+    }
+
+    return response()->json(['message' => 'Booking updated successfully!', 'data' => $assignment]);
 }
 
 /**
@@ -288,7 +357,8 @@ public function getAttendanceHistory(Request $request)
               ->get()
     );
 }
-///student get for a specific inst
+
+//new fetch student with the prograss
 public function getMyAssignedStudents()
 {
     try {
@@ -301,14 +371,18 @@ public function getMyAssignedStudents()
             ], 404);
         }
 
-        // Get all students where instructor_id matches this instructor
-        // Load user relationship to get name and email
         $students = Student::with(['user', 'package'])
             ->where('instructor_id', $instructorId)
             ->get();
 
-        // Transform the data to include user information
-        $formattedStudents = $students->map(function($student) {
+        $formattedStudents = $students->map(function ($student) {
+            // Get the latest enrolment for this student (any status)
+            $enrolment = \App\Models\Enrolment::where('student_id', $student->id)
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            $progress = $enrolment ? (int) $enrolment->progress_percentage : 0;
+
             return [
                 'id' => $student->id,
                 'user_id' => $student->user_id,
@@ -318,6 +392,7 @@ public function getMyAssignedStudents()
                 'province' => $student->province,
                 'city' => $student->city,
                 'street_address' => $student->street_address,
+                'progress' => $progress,
                 'package' => $student->package ? [
                     'id' => $student->package->id,
                     'name' => $student->package->package_name,
@@ -333,15 +408,15 @@ public function getMyAssignedStudents()
             'success' => true,
             'data' => $formattedStudents
         ]);
-        
+
     } catch (\Exception $e) {
+        \Log::error('getMyAssignedStudents error: ' . $e->getMessage());
         return response()->json([
             'success' => false,
-            'message' => 'Failed to fetch students: ' . $e->getMessage()
+            'message' => 'Server error: ' . $e->getMessage()
         ], 500);
     }
 }
-
 //progress update 
 public function updateStudentProgress(Request $request, $studentId)
 {
@@ -381,7 +456,7 @@ public function updateStudentProgress(Request $request, $studentId)
 
         // Find the active enrolment for this student
         $enrolment = \App\Models\Enrolment::where('student_id', $studentId)
-            ->where('status', 'active')
+            // ->where('status', ['active', 'paid'])
             ->latest()
             ->first();
 

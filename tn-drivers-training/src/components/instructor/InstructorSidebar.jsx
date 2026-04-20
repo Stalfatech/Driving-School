@@ -1,20 +1,25 @@
+
+
+
+
+
+
+
 import React, { useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { 
-  LayoutDashboard, Users, CalendarDays, 
-  ReceiptIndianRupee, Bell, LogOut, Sun, Moon, 
-  ChevronLeft, Command
-} from "lucide-react";
+import axios from "axios";
+
+const API_BASE = "http://localhost:8000/api/instructor";
 
 const InstructorSidebar = ({ isOpen, setIsOpen }) => {
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
-  
 
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem("theme") === "dark";
   });
 
+  // Theme Sync
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add("dark");
@@ -31,7 +36,7 @@ const InstructorSidebar = ({ isOpen, setIsOpen }) => {
       const token = localStorage.getItem('access_token');
       
       // Call logout API
-      await axios.post(`${API_BASE}/logout`, {}, {
+      await axios.post(`http://localhost:8000/api/logout`, {}, {
         headers: { 
           Authorization: `Bearer ${token}` 
         }
@@ -57,128 +62,139 @@ const InstructorSidebar = ({ isOpen, setIsOpen }) => {
   };
 
   const menuItems = [
-    { name: "Dashboard", icon: <LayoutDashboard size={20} />, path: "/instructor" },
-    { name: "My Students", icon: <Users size={20} />, path: "/instructor/students" },
-    { name: "Schedule", icon: <CalendarDays size={20} />, path: "/instructor/schedule" },
-    { name: "My Expenses", icon: <ReceiptIndianRupee size={20} />, path: "/instructor/expenses" },
-    { name: "Notifications", icon: <Bell size={20} />, path: "/instructor/notifications" },
+    { name: "Dashboard", icon: "⊞", path: "/instructor", section: "Main" },
+    { name: "My Students", icon: "👤", path: "/instructor/students", section: "Main" },
+    { name: "Schedule", icon: "📅", path: "/instructor/schedule", section: "Main" },
+    { name: "My Expenses", icon: "🧾", path: "/instructor/expenses", section: "Finance" },
+    { name: "Notifications", icon: "🔔", path: "/instructor/notifications", section: "System" },
   ];
+
+  // Group menu items by section
+  const groupedItems = menuItems.reduce((acc, item) => {
+    if (!acc[item.section]) acc[item.section] = [];
+    acc[item.section].push(item);
+    return acc;
+  }, {});
 
   return (
     <>
-      {/* 1. MOBILE OVERLAY (Backdrop) */}
-      <div
-        className={`
-          fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-60 lg:hidden 
-          transition-opacity duration-300
-          ${isOpen ? "opacity-100 visible" : "opacity-0 invisible"}
-        `}
-        onClick={() => setIsOpen(false)}
-      />
+      {/* Overlay for mobile */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 md:hidden"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
 
-      {/* 2. SIDEBAR CONTAINER */}
+      {/* SIDEBAR - White background, clean design */}
       <aside
         className={`
-          fixed top-0 left-0 bottom-0 z-70 w-72 
-          bg-white dark:bg-background-dark border-r border-slate-200 dark:border-slate-800
-          flex flex-col transition-all duration-300 ease-in-out
+          fixed inset-y-0 left-0 z-40 w-[220px] bg-white dark:bg-slate-900
+          border-r border-slate-200 dark:border-slate-800
+          flex flex-col
+          overflow-y-auto
+          transition-transform duration-300 transform
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
-          lg:translate-x-0 lg:static lg:h-screen
+          md:translate-x-0 md:relative md:flex
+          shadow-[3px_0_16px_rgba(0,0,0,0.08)]
         `}
       >
-        {/* LOGO SECTION & MOBILE CLOSE BUTTON */}
-        <div className="p-6 flex items-center justify-between shrink-0">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-teal rounded-xl flex items-center justify-center text-white shadow-lg shadow-teal/20">
-              <Command size={22} strokeWidth={2.5} />
-            </div>
-            <div>
-              <h2 className="text-lg font-black tracking-tighter text-slate-800 dark:text-white uppercase italic leading-none">
-                Terra <span className="text-teal">Nova</span>
-              </h2>
-              <p className="text-[10px] uppercase font-black tracking-[0.2em] text-slate-400 mt-1">
-                Instructor
-              </p>
-            </div>
+        {/* HEADER with logo */}
+        <div className="border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+          <div className="w-54.5 h-15 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden bg-white dark:bg-white shadow-md">
+            <img 
+              src="/logo.webp" 
+              alt="Terra Nova Logo" 
+              className="w-70 h-20 object-contain p-1"
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = "https://ui-avatars.com/api/?name=TN&background=008B8B&color=fff&size=40";
+              }}
+            />
           </div>
-          
-          {/* Only visible on mobile to close the drawer */}
-          <button 
+          {/* Close button for mobile */}
+          <button
             onClick={() => setIsOpen(false)}
-            className="lg:hidden p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+            className="md:hidden w-6 h-6 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all hover:rotate-90 mr-3"
           >
-            <ChevronLeft size={20} />
+            ✕
           </button>
         </div>
 
-        {/* NAVIGATION LINKS */}
-        <nav className="px-4 space-y-1.5 flex-1 overflow-y-auto mt-4 scrollbar-hide">
-          {menuItems.map((item) => (
-            <NavLink
-              key={item.name}
-              to={item.path}
-              end={item.path === "/instructor"}
-              onClick={() => setIsOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center space-x-3 px-4 py-3.5 rounded-2xl font-bold transition-all duration-200 group
-                ${isActive
-                    ? "bg-teal text-white shadow-xl shadow-teal/20"
-                    : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                }`
-              }
-            >
-              <span className="shrink-0 transition-transform group-hover:scale-110">
-                {item.icon}
-              </span>
-              <span className="text-[13px] uppercase tracking-wider italic">
-                {item.name}
-              </span>
-            </NavLink>
+        {/* NAVIGATION with sections */}
+        <nav className="flex-1 overflow-y-auto px-2">
+          {Object.entries(groupedItems).map(([section, items]) => (
+            <div key={section}>
+              <div className="text-[0.90rem] font-soro font-semibold tracking-[0.20rem] uppercase text-slate-400 dark:text-slate-500 px-3 pt-4 pb-1.5">
+                {section}
+              </div>
+              {items.map((item) => (
+                <NavLink
+                  key={item.name}
+                  to={item.path}
+                  end={item.path === "/instructor"}
+                  onClick={() => setIsOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2.5 px-3 py-2 my-0.5 rounded-md font-medium text-[1rem] transition-all duration-200
+                    ${isActive 
+                      ? "bg-teal-500 text-white shadow-sm font-semibold" 
+                      : "text-slate-600 dark:text-slate-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 hover:text-teal-600 dark:hover:text-teal-400 hover:pl-4"
+                    }`
+                  }
+                >
+                  <span className="text-[0.82rem] w-4 text-center flex-shrink-0">
+                    {item.icon}
+                  </span>
+                  <span className="whitespace-nowrap">{item.name}</span>
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
 
-        {/* BOTTOM UTILITY SECTION */}
-        <div className="p-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
-          
-          {/* THEME TOGGLE CARD */}
-          <div className="bg-slate-50 dark:bg-slate-800/50 rounded-3xl p-2 flex items-center justify-between">
+        {/* BOTTOM SECTION */}
+        <div className="border-t border-slate-200 dark:border-slate-800 pt-3 pb-4 px-2">
+          {/* Appearance Toggle */}
+          <div className="flex items-center justify-between px-3 py-2 rounded-md hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors group">
+            <div className="flex items-center gap-2.5">
+              <span className="text-[1rem] text-slate-500 dark:text-slate-400">
+                {darkMode ? "🌙" : "☀️"}
+              </span>
+              <span className="text-[1rem] font-medium text-slate-600 dark:text-slate-400 group-hover:text-teal-600 dark:group-hover:text-teal-400">
+                Appearance
+              </span>
+            </div>
             <button
-              onClick={() => setDarkMode(false)}
-              className={`flex-1 flex items-center justify-center py-2 rounded-xl transition-all ${!darkMode ? "bg-white text-orange-500 shadow-sm" : "text-slate-400"}`}
+              onClick={() => setDarkMode(!darkMode)}
+              className={`w-10 h-5 flex items-center rounded-full p-0.5 transition-all duration-300 ${
+                darkMode ? "bg-teal-500" : "bg-slate-300"
+              }`}
             >
-              <Sun size={16} />
-            </button>
-            <button
-              onClick={() => setDarkMode(true)}
-              className={`flex-1 flex items-center justify-center py-2 rounded-xl transition-all ${darkMode ? "bg-card-dark text-indigo-400 shadow-sm" : "text-slate-400"}`}
-            >
-              <Moon size={16} />
+              <div
+                className={`bg-white w-4 h-4 rounded-full shadow-sm transform transition-transform duration-300 ${
+                  darkMode ? "translate-x-5" : ""
+                }`}
+              />
             </button>
           </div>
-
-          {/* LOGOUT BUTTON */}
+      
+          {/* LOGOUT */}
           <button
             onClick={handleLogout}
             disabled={loggingOut}
-            className="mt-1 w-full flex items-center justify-between px-4 py-3 rounded-lg
-                       bg-red-100 dark:bg-red-900/30
+            className="mt-2 w-full flex items-center gap-2.5 px-3 py-2 rounded-md
+                       bg-red-50 dark:bg-red-900/20
                        text-red-600 dark:text-red-400
-                       hover:bg-red-200 dark:hover:bg-red-900/50
-                       transition-all duration-300 font-semibold
+                       hover:bg-red-100 dark:hover:bg-red-900/40
+                       transition-all duration-200 font-medium text-[0.78rem]
                        disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <div className="flex items-center space-x-3">
-              <span className="material-symbols-outlined text-[20px]">
-                {loggingOut ? "hourglass_empty" : "logout"}
-              </span>
-              <span className="text-[14px]">
-                {loggingOut ? "Logging out..." : "Logout"}
-              </span>
-            </div>
-            
-            {/* Optional spinner for visual feedback */}
+            <span className="text-[1rem] w-4 text-center">
+              {loggingOut ? "⏳" : "↪"}
+            </span>
+            <span className="text-xs md:text-lg">{loggingOut ? "Logging out..." : "LogOut"}</span>
             {loggingOut && (
-              <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+              <div className="ml-auto w-3 h-3 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
             )}
           </button>
         </div>

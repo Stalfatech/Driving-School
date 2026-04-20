@@ -104,48 +104,25 @@ public function index()
 /**
  * DELETE: Remove a duty block
  */
-// public function destroyDuty($id)
-// {
-//     $duty = Schedule::findOrFail($id);
-    
-//     // Optional: Check if it has assignments before deleting
-//     if ($duty->assignments()->count() > 0) {
-//         return response()->json([
-//             'error' => 'Cannot delete duty block that already has students booked.'
-//         ], 422);
-//     }
-
-//     $duty->delete();
-
-//     return response()->json(['message' => 'Duty block deleted successfully.']);
-// }
-
 public function destroyDuty(Request $request, $id)
 {
     $duty = Schedule::findOrFail($id);
-    
-    $force = $request->query('force', false);
-    
-    if ($duty->assignments()->count() > 0 && !$force) {
-        return response()->json([
-            'success' => false,
-            'error' => 'Cannot delete duty block that already has students booked. Use force=true to delete anyway.'
-        ], 422);
-    }
 
-    // Delete assignments if force is true
-    if ($force) {
-        $duty->assignments()->delete();
-    }
-
-    $duty->delete();
+    // Just soft-delete — no force option needed anymore
+    // Assignments, attendance, evaluations are all untouched
+    $duty->delete(); // sets deleted_at timestamp, data preserved
 
     return response()->json([
         'success' => true,
-        'message' => $force 
-            ? 'Duty block and all associated assignments deleted successfully.'
-            : 'Duty block deleted successfully.'
+        'message' => 'Duty block deactivated successfully.'
     ]);
+}
+public function restoreDuty($id)
+{
+    $duty = Schedule::withTrashed()->findOrFail($id);
+    $duty->restore(); // clears deleted_at
+
+    return response()->json(['success' => true, 'message' => 'Duty block restored.']);
 }
 
 public function updateDuty(Request $request, $id)

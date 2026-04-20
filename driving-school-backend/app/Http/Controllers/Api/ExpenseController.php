@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Expense;
+use App\Models\Instructor;
 use App\Models\User; 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -13,73 +14,209 @@ use Exception;
 class ExpenseController extends Controller
 {
     /**
-     * For ADMINS: List all expenses from all instructors.
+     * For ADMINS: List all expenses from all instructors with pagination, search, and filters.
      */
-   /**
- * For ADMINS: List all expenses from all instructors.
- */
-public function index()
-{
-    try {
-        // Eager loading instructor and the nested user relationship
-        $expenses = Expense::with(['instructor.user'])
-            ->orderBy('created_at', 'desc')
-            ->get();
+    public function index(Request $request)
+    {
+        try {
+            // Start query with eager loading
+            $query = Expense::with(['instructor.user']);
 
-        return response()->json([
-            'success' => true,
-            'data'    => $expenses
-        ]);
-    } catch (Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Admin Load Error: ' . $e->getMessage()
-        ], 500);
+            // 1. Filter by Status
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
+            }
+
+            // 2. Filter by Category
+            if ($request->filled('category') && $request->category !== 'All') {
+                $query->where('category', $request->category);
+            }
+
+            // 3. Filter by Location (via instructor's assigned_location)
+            if ($request->filled('location') && $request->location !== 'All') {
+                $query->whereHas('instructor', function($q) use ($request) {
+                    $q->where('assigned_location', $request->location);
+                });
+            }
+
+            // 4. Search by instructor name or category
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->whereHas('instructor.user', function($userQuery) use ($search) {
+                        $userQuery->where('name', 'like', "%{$search}%");
+                    })->orWhere('category', 'like', "%{$search}%");
+                });
+            }
+
+            // 5. Pagination (default 10 items per page)
+            $perPage = $request->input('per_page', 10);
+            $expenses = $query->orderBy('created_at', 'desc')->paginate($perPage);
+
+            // 6. Get unique categories and locations for filter dropdowns
+            $categories = Expense::distinct()->pluck('category')->toArray();
+            $locations = Instructor::whereNotNull('assigned_location')
+                ->distinct()
+                ->pluck('assigned_location')
+                ->toArray();
+
+            // 7. Transform the data to include display location
+            $expenses->getCollection()->transform(function ($expense) {
+                // Get instructor's location
+                $expense->displayLocation = $expense->instructor?->assigned_location ?? 'Not Assigned';
+                return $expense;
+            });
+
+            return response()->json([
+                'success' => true,
+                'data'    => $expenses->items(),
+                'meta'    => [
+                    'current_page' => $expenses->currentPage(),
+                    'last_page'    => $expenses->lastPage(),
+                    'total'        => $expenses->total(),
+                    'per_page'     => $expenses->perPage(),
+                ],
+                'filters' => [
+                    'categories' => $categories,
+                    'locations'  => $locations,
+                ]
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Admin Load Error: ' . $e->getMessage()
+            ], 500);
+        }
     }
-}
 
-/**
- * Get expense statistics for admin dashboard
- */
-public function getStats()
-{
-    try {
-        // Get all approved expenses for total calculation
-        $approvedExpenses = Expense::where('status', 'approved')->get();
-        $totalApproved = $approvedExpenses->sum('amount');
-        
-        // Get expenses grouped by month for charts (only approved)
-        $monthlyExpenses = Expense::selectRaw('YEAR(created_at) as year, MONTH(created_at) as month, SUM(amount) as total')
-            ->where('status', 'approved')
-            ->groupBy('year', 'month')
-            ->orderBy('year', 'desc')
-            ->orderBy('month', 'desc')
-            ->limit(6)
-            ->get()
-            ->map(function($item) {
-                $date = \DateTime::createFromFormat('Y-m', $item->year . '-' . $item->month);
-                return [
-                    'month' => $date->format('M'),
-                    'amount' => $item->total
-                ];
-            })
-            ->reverse()
-            ->values();
+    /**
+     * Export expenses to CSV based on filters
+     */
+    public function export(Request $request)
+    {
+        try {
+            $query = Expense::with(['instructor.user']);
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'total_approved' => $totalApproved,
-                'monthly' => $monthlyExpenses
-            ]
-        ]);
-    } catch (Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to load expense stats: ' . $e->getMessage()
-        ], 500);
+            // Apply same filters as index
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
+            }
+            if ($request->filled('category') && $request->category !== 'All') {
+                $query->where('category', $request->category);
+            }
+            if ($request->filled('location') && $request->location !== 'All') {
+                $query->whereHas('instructor', function($q) use ($request) {
+                    $q->where('assigned_location', $request->location);
+                });
+            }
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->whereHas('instructor.user', function($userQuery) use ($search) {
+                        $userQuery->where('name', 'like', "%{$search}%");
+                    })->orWhere('category', 'like', "%{$search}%");
+                });
+            }
+
+            $expenses = $query->orderBy('created_at', 'desc')->get();
+
+            // Create CSV
+            $filename = 'expenses_' . now()->format('Y-m-d_His') . '.csv';
+            $handle = fopen('php://temp', 'w+');
+            
+            // Add CSV headers with BOM for Excel
+            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
+            fputcsv($handle, [
+                'ID',
+                'Instructor Name',
+                'Instructor ID',
+                'Category',
+                'Amount',
+                'Location',
+                'Date',
+                'Status',
+                'Description',
+                'Admin Remarks'
+            ]);
+
+            // Add data rows
+            foreach ($expenses as $expense) {
+                fputcsv($handle, [
+                    $expense->id,
+                    $expense->instructor?->user?->name ?? 'Unknown',
+                    $expense->instructor_id ?? 'N/A',
+                    $expense->category ?? '',
+                    $expense->amount ?? 0,
+                    $expense->instructor?->assigned_location ?? 'Not Assigned',
+                    // $expense->created_at?->format('Y-m-d') ?? '',
+                    '="' . ($expense->created_at?->format('Y-m-d') ?? '') . '"',
+                    $expense->status ?? '',
+                    $expense->description ?? '',
+                    $expense->admin_remarks ?? ''
+                ]);
+            }
+
+            rewind($handle);
+            $content = stream_get_contents($handle);
+            fclose($handle);
+
+            return response($content)
+                ->header('Content-Type', 'text/csv; charset=UTF-8')
+                ->header('Content-Disposition', 'attachment; filename="' . $filename . '"')
+                ->header('Pragma', 'no-cache')
+                ->header('Expires', '0');
+
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Export failed: ' . $e->getMessage()
+            ], 500);
+        }
     }
-}
+
+    /**
+     * Get expense statistics for admin dashboard
+     */
+    public function getStats()
+    {
+        try {
+            // Get all approved expenses for total calculation
+            $approvedExpenses = Expense::where('status', 'approved')->get();
+            $totalApproved = $approvedExpenses->sum('amount');
+            
+            // Get expenses grouped by month for charts (only approved)
+            $monthlyExpenses = Expense::selectRaw('YEAR(created_at) as year, MONTH(created_at) as month, SUM(amount) as total')
+                ->where('status', 'approved')
+                ->groupBy('year', 'month')
+                ->orderBy('year', 'desc')
+                ->orderBy('month', 'desc')
+                ->limit(6)
+                ->get()
+                ->map(function($item) {
+                    $date = \DateTime::createFromFormat('Y-m', $item->year . '-' . $item->month);
+                    return [
+                        'month' => $date->format('M'),
+                        'amount' => $item->total
+                    ];
+                })
+                ->reverse()
+                ->values();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'total_approved' => $totalApproved,
+                    'monthly' => $monthlyExpenses
+                ]
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load expense stats: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     /**
      * For INSTRUCTORS: Get their own expense history.
      */
@@ -135,17 +272,16 @@ public function getStats()
             'status'         => 'pending',
         ]);
 
-        //admin nitifucation
-
-         $adminUsers = User::where('role', 'admin')->get();
-    foreach ($adminUsers as $admin) {
-        $admin->notify(new \App\Notifications\AdminNotification('new_expense', [
-            'expense_id' => $expense->id,
-            'instructor_name' => $instructor->user->name ?? 'Unknown Instructor',
-            'amount' => $expense->amount,
-            'category' => $expense->category
-        ]));
-    }
+        //admin notification
+        $adminUsers = User::where('role', 'admin')->get();
+        foreach ($adminUsers as $admin) {
+            $admin->notify(new \App\Notifications\AdminNotification('new_expense', [
+                'expense_id' => $expense->id,
+                'instructor_name' => $instructor->user->name ?? 'Unknown Instructor',
+                'amount' => $expense->amount,
+                'category' => $expense->category
+            ]));
+        }
 
         return response()->json(['success' => true, 'data' => $expense], 201);
     }

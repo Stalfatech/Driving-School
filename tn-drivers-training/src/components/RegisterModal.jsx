@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
@@ -5,7 +6,7 @@ import {
   Home, Globe, Car, Loader2,
   CheckCircle, AlertCircle, Calendar, Award, 
   Hash, Briefcase, PenTool, Camera,
-  Users, MapPinned
+  Users, MapPinned, Cake
 } from 'lucide-react';
 
 const API_BASE = "http://localhost:8000/api";
@@ -22,6 +23,7 @@ const RegisterModal = ({ onClose, onLoginClick }) => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isUnder18, setIsUnder18] = useState(false);
   const [showForeignAddress, setShowForeignAddress] = useState(false);
+  const [calculatedAge, setCalculatedAge] = useState(null);
 
   // Form data (all fields preserved)
   const [formData, setFormData] = useState({
@@ -29,8 +31,31 @@ const RegisterModal = ({ onClose, onLoginClick }) => {
     package_id: '', province: '', street_address: '', appartment: '', city: '', postal_code: '', state: '', country: 'Canada',
     permit_number: '', permit_issue_date: '', has_foreign_license: false, foreign_license_number: '',
     parent_name: '', parent_email: '', parent_phone: '', experience: '', additional_notes: '',
-    foreign_street_address: '', foreign_appartment: '', foreign_city: '', foreign_state: '', foreign_postal_code: '', foreign_country: ''
+    foreign_street_address: '', foreign_appartment: '', foreign_city: '', foreign_state: '', foreign_postal_code: '', foreign_country: '',
+    dob: '' // Add DOB field
   });
+
+  // Calculate age from DOB
+  const calculateAge = (dob) => {
+    if (!dob) return null;
+    const birthDate = new Date(dob);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  // Handle DOB change and update under 18 status
+  const handleDobChange = (e) => {
+    const dob = e.target.value;
+    setFormData({ ...formData, dob });
+    const age = calculateAge(dob);
+    setCalculatedAge(age);
+    setIsUnder18(age !== null && age < 18);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -68,6 +93,19 @@ const RegisterModal = ({ onClose, onLoginClick }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate age requirement (must be at least 16 for driving school)
+    if (formData.dob) {
+      const age = calculateAge(formData.dob);
+      if (age < 16) {
+        setMessage({ type: 'error', text: 'You must be at least 16 years old to register' });
+        return;
+      }
+    } else {
+      setMessage({ type: 'error', text: 'Date of birth is required' });
+      return;
+    }
+    
     if (formData.password !== formData.password_confirmation) {
       setMessage({ type: 'error', text: 'Passwords do not match' });
       return;
@@ -107,8 +145,8 @@ const RegisterModal = ({ onClose, onLoginClick }) => {
       setMessage({ type: 'error', text: !formData.package_id ? 'Select a package' : 'Select your location' });
       return;
     }
-    if (step === 2 && (!formData.name || !formData.email || !formData.phone || !formData.password)) {
-      setMessage({ type: 'error', text: 'Please fill all required fields' });
+    if (step === 2 && (!formData.name || !formData.email || !formData.phone || !formData.password || !formData.dob)) {
+      setMessage({ type: 'error', text: 'Please fill all required fields including Date of Birth' });
       return;
     }
     setStep(step + 1);
@@ -250,6 +288,26 @@ const RegisterModal = ({ onClose, onLoginClick }) => {
                     <input type="tel" name="phone" value={formData.phone} onChange={handleChange} required placeholder="Phone"
                       className="bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-sm text-white placeholder-white/30 focus:border-teal-500 outline-none" />
                     
+                    {/* DOB Field - New */}
+                    <div className="col-span-2">
+                      <label className="block text-xs font-medium text-white/80 mb-1">
+                        <Cake size={12} className="inline mr-1 text-teal-400" />Date of Birth *
+                      </label>
+                      <input 
+                        type="date" 
+                        name="dob" 
+                        value={formData.dob} 
+                        onChange={handleDobChange} 
+                        required
+                        className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-sm text-white [color-scheme:dark] focus:border-teal-500 outline-none" 
+                      />
+                      {calculatedAge !== null && (
+                        <p className={`text-[10px] mt-1 ${calculatedAge < 16 ? 'text-red-400' : 'text-teal-400'}`}>
+                          Age: {calculatedAge} years {calculatedAge < 16 ? '(Must be 16 or older)' : ''}
+                        </p>
+                      )}
+                    </div>
+                    
                     <input type="text" name="permit_number" value={formData.permit_number} onChange={handleChange} placeholder="Permit #"
                       className="bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-sm text-white placeholder-white/30 focus:border-teal-500 outline-none" />
                     
@@ -257,7 +315,7 @@ const RegisterModal = ({ onClose, onLoginClick }) => {
                       className="bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-sm text-white [color-scheme:dark] focus:border-teal-500 outline-none" />
                     
                     <input type="text" name="experience" value={formData.experience} onChange={handleChange} placeholder="Experience"
-                      className="bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-sm text-white placeholder-white/30 focus:border-teal-500 outline-none" />
+                      className="col-span-2 bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-sm text-white placeholder-white/30 focus:border-teal-500 outline-none" />
                   </div>
 
                   {/* Password Fields */}
@@ -273,11 +331,15 @@ const RegisterModal = ({ onClose, onLoginClick }) => {
                     </div>
                   </div>
 
-                  {/* Under 18 Checkbox */}
-                  <label className="flex items-center gap-2 p-2 bg-white/5 rounded-lg text-xs cursor-pointer">
-                    <input type="checkbox" checked={isUnder18} onChange={(e) => setIsUnder18(e.target.checked)} className="accent-teal-500" />
-                    <span className="text-white">I am under 18</span>
-                  </label>
+                  {/* Note about under 18 - Auto-detected from DOB */}
+                  {calculatedAge !== null && calculatedAge < 18 && calculatedAge >= 16 && (
+                    <div className="p-2 bg-amber-500/20 rounded-lg">
+                      <p className="text-xs text-amber-400 flex items-center gap-1">
+                        <AlertCircle size={12} />
+                        Parent/Guardian information will be required in the next step
+                      </p>
+                    </div>
+                  )}
 
                   {/* Profile Picture */}
                   <div>
@@ -342,10 +404,11 @@ const RegisterModal = ({ onClose, onLoginClick }) => {
                     </div>
                   )}
 
-                  {/* Parent/Guardian */}
-                  {isUnder18 && (
+                  {/* Parent/Guardian - Now based on calculated age from DOB */}
+                  {isUnder18 && calculatedAge !== null && (
                     <div className="p-3 bg-white/5 rounded-lg space-y-2">
-                      <h4 className="text-xs font-bold text-teal-400">Parent/Guardian</h4>
+                      <h4 className="text-xs font-bold text-teal-400">Parent/Guardian Information</h4>
+                      <p className="text-[10px] text-white/60">Student is {calculatedAge} years old - Parent/Guardian consent required</p>
                       <div className="grid grid-cols-2 gap-2">
                         <input type="text" name="parent_name" value={formData.parent_name} onChange={handleChange} placeholder="Full Name"
                           className="col-span-2 bg-white/5 border border-white/10 rounded-lg py-1.5 px-2 text-xs text-white" />
