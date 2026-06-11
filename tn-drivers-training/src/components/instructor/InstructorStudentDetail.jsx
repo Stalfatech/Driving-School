@@ -15,7 +15,7 @@ const API_URL = "http://localhost:8000/api";
 function buildStudentAddress(student) {
   const parts = [
     student.street_address,
-    student.appartment,  // note: double-p as per DB
+    student.appartment,  
     student.city,
     student.province,
     student.postal_code,
@@ -48,6 +48,7 @@ export default function InstructorStudentDetail({ student, onClose }) {
   // Evaluation states
   const [selectedEvaluation, setSelectedEvaluation] = useState(null);
   const [isEditingEvaluation, setIsEditingEvaluation] = useState(false);
+  const [isViewingEvaluation, setIsViewingEvaluation] = useState(false); // NEW STATE FOR VIEWING
   const [evaluationForm, setEvaluationForm] = useState({
     score: 0,
     remarks: "",
@@ -78,17 +79,21 @@ export default function InstructorStudentDetail({ student, onClose }) {
       );
       setUpcomingSessions(upcoming);
       
+      // ✅ EXTRACTING TEST SPECIFIC DATA HERE
       const evals = studentHistory
-  .filter(a => a.evaluation)
-  .map(a => ({
-    id: a.evaluation.id,
-    assignment_id: a.id,
-    date: a.date,
-    test_type: a.evaluation.test_type || a.schedule?.task_description || 'Assessment',
-    score: a.evaluation.score || 0,
-    remarks: a.evaluation.instructor_remarks || '',
-    studentReply: a.evaluation.student_reply || '',   // ← new field
-  }));
+        .filter(a => a.evaluation || (a.is_test && a.test_score))
+        .map(a => ({
+          id: a.evaluation?.id || a.id,
+          assignment_id: a.id,
+          date: a.date,
+          test_type: a.evaluation?.test_type || a.test_type || a.schedule?.task_description || 'Assessment',
+          score: a.evaluation?.score || a.test_score || 0,
+          remarks: a.evaluation?.instructor_remarks || '',
+          studentReply: a.evaluation?.student_reply || '',
+          is_test: a.is_test === 1 || a.is_test === true,
+          test_result: a.test_result,
+          test_attempt: a.test_attempt
+        }));
       setEvaluations(evals);
       
     } catch (err) {
@@ -233,7 +238,6 @@ export default function InstructorStudentDetail({ student, onClose }) {
     );
   }
 
-  // Build the full address once
   const fullAddress = buildStudentAddress(student);
   const shortLocation = buildShortLocation(student);
 
@@ -271,7 +275,6 @@ export default function InstructorStudentDetail({ student, onClose }) {
                     <span className="truncate">{student.phone}</span>
                   </span>
                 )}
-                {/* ✅ FIX: show actual address instead of location ID */}
                 {shortLocation && (
                   <span className="flex items-center gap-1">
                     <MapPin size={10} className="sm:w-3 sm:h-3 md:w-4 md:h-4 text-teal-500 shrink-0" />
@@ -383,39 +386,12 @@ export default function InstructorStudentDetail({ student, onClose }) {
                     <h4 className="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">Student Info</h4>
                   </div>
                   <p className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400">ID: STU-{String(student.id).padStart(3, '0')}</p>
-                  {/* ✅ FIX: Show full address instead of raw location ID */}
                   <p className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400 mt-1 flex items-start gap-1">
                     <MapPin size={12} className="text-teal-500 shrink-0 mt-0.5" />
                     <span>{fullAddress}</span>
                   </p>
                 </div>
               </div>
-
-              {/* Recent Evaluations Preview */}
-              {evaluations.length > 0 && (
-                <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5">
-                  <h4 className="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 sm:mb-4">Recent Evaluations</h4>
-                  <div className="space-y-2 sm:space-y-3">
-                    {evaluations.slice(0, 2).map(evalItem => (
-                      <div key={evalItem.id} className="flex flex-wrap items-center justify-between gap-2 p-2 sm:p-3 bg-slate-50 dark:bg-slate-800/30 rounded-lg">
-                        <div>
-                          <p className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-white">{evalItem.test_type}</p>
-                          <p className="text-[10px] sm:text-xs text-slate-500">{evalItem.date}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-base sm:text-lg font-bold text-teal-600">{Math.round(evalItem.score)}%</span>
-                          <button 
-                            onClick={() => { setActiveTab("Evaluations"); openEvaluationEditor(evalItem); }}
-                            className="p-1 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
-                          >
-                            <Edit2 size={12} className="sm:w-4 sm:h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
@@ -439,9 +415,14 @@ export default function InstructorStudentDetail({ student, onClose }) {
                           {new Date(session.date).getDate()}
                         </div>
                         <div>
-                          <p className="text-sm sm:text-base font-bold text-slate-800 dark:text-white">
-                            {session.schedule?.task_description || 'Driving Lesson'}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm sm:text-base font-bold text-slate-800 dark:text-white">
+                              {session.schedule?.task_description || 'Driving Lesson'}
+                            </p>
+                            {session.is_test && (
+                              <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-[10px] font-bold uppercase">Test</span>
+                            )}
+                          </div>
                           <div className="flex flex-wrap gap-2 sm:gap-3 mt-1">
                             <span className="flex items-center gap-1 text-[10px] sm:text-xs text-slate-500">
                               <Calendar size={10} className="sm:w-3 sm:h-3" /> {session.date}
@@ -471,75 +452,141 @@ export default function InstructorStudentDetail({ student, onClose }) {
             </div>
           )}
 
-          {/* ── EVALUATIONS TAB ── */}
-          {activeTab === "Evaluations" && (
-            <div className="space-y-3 sm:space-y-4">
-              <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                <Star size={16} className="sm:w-5 sm:h-5 text-teal-500" />
-                <h3 className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Student Evaluations</h3>
-              </div>
+          {/* ── EVALUATIONS TAB (SEPARATED TEST VS LESSONS) ── */}
+          {activeTab === "Evaluations" && (() => {
+            const lessonEvals = evaluations.filter(e => !e.is_test);
+            const testReports = evaluations.filter(e => e.is_test);
 
-              {evaluations.length > 0 ? (
-                <div className="space-y-3 sm:space-y-4">
-                  {evaluations.map((evalItem) => (
-                    <div key={evalItem.id} className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-                      <div className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-800/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
-                        <div className="flex items-center gap-2 sm:gap-3">
-                          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
-                            <Award size={14} className="sm:w-5 sm:h-5 text-teal-600" />
-                          </div>
-                          <div>
-                            <h4 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-white">{evalItem.test_type}</h4>
-                            <p className="text-[10px] sm:text-xs text-slate-500">{evalItem.date}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 sm:gap-3">
-                          <div className="text-right">
-                            <span className="text-lg sm:text-2xl font-bold text-teal-600">{Math.round(evalItem.score)}</span>
-                            <span className="text-[10px] sm:text-sm text-slate-400">/100</span>
-                          </div>
-                          <button 
-                            onClick={() => openEvaluationEditor(evalItem)}
-                            className="p-1.5 sm:p-2 bg-teal-100 dark:bg-teal-900/30 text-teal-600 rounded-lg hover:bg-teal-200 transition-all"
-                          >
-                            <Edit2 size={12} className="sm:w-4 sm:h-4" />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-700">
-                        <div className="flex items-center gap-2 mb-2">
-                          <MessageSquare size={12} className="sm:w-3.5 sm:h-3.5 text-teal-500" />
-                          <span className="text-[9px] sm:text-[10px] font-semibold text-teal-600 uppercase tracking-wider">Instructor Remarks</span>
-                        </div>
-                        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 italic">
-                          "{evalItem.remarks || 'No remarks added'}"
-                        </p>
-                      </div>
-                      {/* Student Reply */}
-{evalItem.studentReply && (
-  <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-700 bg-amber-50/30 dark:bg-amber-900/10">
-    <div className="flex items-center gap-2 mb-2">
-      <User size={12} className="text-amber-500" />
-      <span className="text-[9px] sm:text-[10px] font-semibold text-amber-600 uppercase tracking-wider">
-        Student Reply
-      </span>
-    </div>
-    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 italic">
-      "{evalItem.studentReply}"
-    </p>
-  </div>
-)}
+            return (
+              <div className="space-y-6 sm:space-y-8">
+                
+                {/* 1. Official Test Reports Section */}
+                {testReports.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                      <Award size={16} className="sm:w-5 sm:h-5 text-purple-500" />
+                      <h3 className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Official Test Reports</h3>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="py-8 sm:py-12 text-center bg-slate-50 dark:bg-slate-800/30 rounded-xl">
-                  <Star size={32} className="sm:w-12 sm:h-12 mx-auto text-slate-300 dark:text-slate-600 mb-2 sm:mb-3" />
-                  <p className="text-xs sm:text-sm text-slate-500">No evaluations found</p>
-                </div>
-              )}
-            </div>
-          )}
+                    <div className="space-y-3 sm:space-y-4">
+                      {testReports.map(evalItem => (
+                        <div key={evalItem.id} className="bg-white dark:bg-slate-900 rounded-xl border border-purple-200 dark:border-purple-900/50 overflow-hidden shadow-sm">
+                          <div className="p-4 sm:p-5 bg-purple-50/50 dark:bg-purple-900/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 border-b border-purple-100 dark:border-purple-900/30">
+                            
+                            <div className="flex items-center gap-2 sm:gap-3">
+                              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                                <Award size={14} className="sm:w-5 sm:h-5 text-purple-600" />
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h4 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-white">{evalItem.test_type}</h4>
+                                  <span className={`px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-wider ${evalItem.test_result === 'Pass' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                    {evalItem.test_result || 'Pending'}
+                                  </span>
+                                </div>
+                                <p className="text-[10px] sm:text-xs text-slate-500">Attempt #{evalItem.test_attempt} • {evalItem.date}</p>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2 sm:gap-3">
+                              <div className="text-right">
+                                <span className="text-lg sm:text-2xl font-bold text-purple-600">{Math.round(evalItem.score)}</span>
+                                <span className="text-[10px] sm:text-sm text-slate-400">/100</span>
+                              </div>
+                              <button 
+                                onClick={() => openEvaluationEditor(evalItem)}
+                                className="p-1.5 sm:p-2 bg-purple-100 dark:bg-purple-900/30 text-purple-600 rounded-lg hover:bg-purple-200 transition-all"
+                              >
+                                <Edit2 size={12} className="sm:w-4 sm:h-4" />
+                              </button>
+                            </div>
+                          </div>
+                          
+                          <div className="p-4 sm:p-5">
+                            <div className="flex items-center gap-2 mb-2">
+                              <MessageSquare size={12} className="sm:w-3.5 sm:h-3.5 text-purple-500" />
+                              <span className="text-[9px] sm:text-[10px] font-semibold text-purple-600 uppercase tracking-wider">Test Remarks</span>
+                            </div>
+                            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 italic">
+                              "{evalItem.remarks || 'No remarks added'}"
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. Standard Lesson Evaluations Section */}
+                {lessonEvals.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                      <Star size={16} className="sm:w-5 sm:h-5 text-teal-500" />
+                      <h3 className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Lesson Evaluations</h3>
+                    </div>
+                    <div className="space-y-3 sm:space-y-4">
+                      {lessonEvals.map(evalItem => (
+                        <div key={evalItem.id} className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                          <div className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-800/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
+                            <div className="flex items-center gap-2 sm:gap-3">
+                              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
+                                <Award size={14} className="sm:w-5 sm:h-5 text-teal-600" />
+                              </div>
+                              <div>
+                                <h4 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-white">{evalItem.test_type}</h4>
+                                <p className="text-[10px] sm:text-xs text-slate-500">{evalItem.date}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 sm:gap-3">
+                              <div className="text-right">
+                                <span className="text-lg sm:text-2xl font-bold text-teal-600">{Math.round(evalItem.score)}</span>
+                                <span className="text-[10px] sm:text-sm text-slate-400">/100</span>
+                              </div>
+                              <button 
+                                onClick={() => openEvaluationEditor(evalItem)}
+                                className="p-1.5 sm:p-2 bg-teal-100 dark:bg-teal-900/30 text-teal-600 rounded-lg hover:bg-teal-200 transition-all"
+                              >
+                                <Edit2 size={12} className="sm:w-4 sm:h-4" />
+                              </button>
+                            </div>
+                          </div>
+                          <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-700">
+                            <div className="flex items-center gap-2 mb-2">
+                              <MessageSquare size={12} className="sm:w-3.5 sm:h-3.5 text-teal-500" />
+                              <span className="text-[9px] sm:text-[10px] font-semibold text-teal-600 uppercase tracking-wider">Instructor Remarks</span>
+                            </div>
+                            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 italic">
+                              "{evalItem.remarks || 'No remarks added'}"
+                            </p>
+                          </div>
+                          {evalItem.studentReply && (
+                            <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-700 bg-amber-50/30 dark:bg-amber-900/10">
+                              <div className="flex items-center gap-2 mb-2">
+                                <User size={12} className="text-amber-500" />
+                                <span className="text-[9px] sm:text-[10px] font-semibold text-amber-600 uppercase tracking-wider">
+                                  Student Reply
+                                </span>
+                              </div>
+                              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 italic">
+                                "{evalItem.studentReply}"
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* No Data State */}
+                {evaluations.length === 0 && (
+                  <div className="py-8 sm:py-12 text-center bg-slate-50 dark:bg-slate-800/30 rounded-xl">
+                    <Star size={32} className="sm:w-12 sm:h-12 mx-auto text-slate-300 dark:text-slate-600 mb-2 sm:mb-3" />
+                    <p className="text-xs sm:text-sm text-slate-500">No evaluations or test reports found</p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* ── HISTORY TAB ── */}
           {activeTab === "History" && (
@@ -556,15 +603,19 @@ export default function InstructorStudentDetail({ student, onClose }) {
                     return (
                       <div 
                         key={session.id} 
-                        className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 hover:shadow-sm transition-all"
+                        className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 hover:shadow-md transition-all"
                       >
                         <div className="flex items-center gap-3 sm:gap-4">
-                          {/* ✅ FIX: proper color per status */}
                           <StatusIcon status={status} />
                           <div>
-                            <p className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-white">
-                              {session.schedule?.task_description || 'Driving Lesson'}
-                            </p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-white">
+                                {session.schedule?.task_description || 'Driving Lesson'}
+                              </p>
+                              {session.is_test && (
+                                <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-[9px] font-bold uppercase">Test</span>
+                              )}
+                            </div>
                             <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1">
                               <span className="flex items-center gap-1 text-[9px] sm:text-[10px] text-slate-500">
                                 <Calendar size={8} className="sm:w-2.5 sm:h-2.5" /> {session.date}
@@ -581,15 +632,14 @@ export default function InstructorStudentDetail({ student, onClose }) {
                         </div>
 
                         <div className="flex items-center gap-2 sm:gap-3 self-start sm:self-center">
-                          {/* ✅ FIX: distinct colors — green for present, red for absent */}
                           <AttendanceBadge status={status} />
                           {session.evaluation && (
                             <button
                               onClick={() => {
                                 const evalItem = evaluations.find(e => e.assignment_id === session.id);
                                 if (evalItem) {
-                                  setActiveTab("Evaluations");
-                                  openEvaluationEditor(evalItem);
+                                  setSelectedEvaluation(evalItem);
+                                  setIsViewingEvaluation(true); // Changed to open View Modal
                                 }
                               }}
                               className="px-1.5 sm:px-2 py-0.5 bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 rounded-full text-[7px] sm:text-[8px] font-bold uppercase tracking-wider hover:bg-teal-200 dark:hover:bg-teal-800/40 transition-colors whitespace-nowrap"
@@ -628,7 +678,7 @@ export default function InstructorStudentDetail({ student, onClose }) {
         <div className="fixed inset-0 z-[60] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-950 w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
             <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-              <h3 className="text-base sm:text-lg font-bold text-slate-800 dark:text-white">Edit Evaluation</h3>
+              <h3 className="text-base sm:text-lg font-bold text-slate-800 dark:text-white">Edit {selectedEvaluation.is_test ? 'Test Report' : 'Evaluation'}</h3>
               <button 
                 onClick={() => { setIsEditingEvaluation(false); setSelectedEvaluation(null); }}
                 className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
@@ -639,7 +689,7 @@ export default function InstructorStudentDetail({ student, onClose }) {
 
             <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Test Type</label>
+                <label className="text-[10px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Type</label>
                 <input 
                   type="text"
                   value={evaluationForm.test_type}
@@ -665,7 +715,7 @@ export default function InstructorStudentDetail({ student, onClose }) {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Instructor Remarks</label>
+                <label className="text-[10px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Remarks</label>
                 <textarea 
                   rows={3}
                   value={evaluationForm.remarks}
@@ -687,6 +737,75 @@ export default function InstructorStudentDetail({ student, onClose }) {
                 >
                   {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                   Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── NEW: READ-ONLY EVALUATION VIEW MODAL ── */}
+      {isViewingEvaluation && selectedEvaluation && (
+        <div className="fixed inset-0 z-[60] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-950 w-full max-w-sm rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+              <h3 className="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wider">
+                {selectedEvaluation.is_test ? 'Test Report' : 'Lesson Evaluation'}
+              </h3>
+              <button 
+                onClick={() => { setIsViewingEvaluation(false); setSelectedEvaluation(null); }}
+                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-5">
+              
+              {/* Score Display */}
+              <div className="flex justify-between items-center bg-teal-50 dark:bg-teal-900/20 p-4 rounded-xl border border-teal-100 dark:border-teal-800/50">
+                <div>
+                  <p className="text-xs text-teal-600 dark:text-teal-400 font-semibold uppercase tracking-wider mb-1">Score Achieved</p>
+                  <p className="text-3xl font-black text-teal-700 dark:text-teal-300">
+                    {Math.round(selectedEvaluation.score)}
+                    <span className="text-base text-teal-500/70">/100</span>
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center shadow-sm">
+                  <Award size={24} className="text-teal-500" />
+                </div>
+              </div>
+
+              {/* Remarks */}
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <MessageSquare size={14} className="text-slate-400" />
+                  <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Instructor Remarks</p>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl text-sm text-slate-700 dark:text-slate-300 italic border border-slate-100 dark:border-slate-700">
+                  "{selectedEvaluation.remarks || 'No remarks were added for this session.'}"
+                </div>
+              </div>
+
+              {/* Student Reply (If exists) */}
+              {selectedEvaluation.studentReply && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <User size={14} className="text-amber-500" />
+                    <p className="text-[11px] text-amber-600 font-bold uppercase tracking-wider">Student Reply</p>
+                  </div>
+                  <div className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-xl text-sm text-amber-700 dark:text-amber-400 italic border border-amber-100 dark:border-amber-900/30">
+                    "{selectedEvaluation.studentReply}"
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-2">
+                <button 
+                  onClick={() => { setIsViewingEvaluation(false); setSelectedEvaluation(null); }}
+                  className="w-full py-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                >
+                  Close View
                 </button>
               </div>
             </div>

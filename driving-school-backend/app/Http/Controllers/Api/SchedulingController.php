@@ -147,4 +147,102 @@ public function updateDuty(Request $request, $id)
     ]);
 }
 
+
+
+
+
+public function getInstructorAvailability(Request $request)
+{
+    try {
+        $request->validate([
+            'instructor_id' => 'required',
+            'date' => 'required|date'
+        ]);
+
+        $date = $request->date;
+        $instructorId = $request->instructor_id;
+
+        // 1. Get ALL Schedules (Shifts) for this instructor on this date
+        // Changed from ->first() to ->get() to support multiple shifts in one day
+        $schedules = \App\Models\Schedule::where('instructor_id', $instructorId)
+            ->where('start_date', '<=', $date)
+            ->where('end_date', '>=', $date)
+            ->get();
+
+        // If they aren't working at all, return empty
+        if ($schedules->isEmpty()) {
+            return response()->json(['success' => true, 'available_slots' => []]);
+        }
+
+        // 2. Get existing bookings to filter them out
+        $booked = \App\Models\ScheduleAssignment::where('instructor_id', $instructorId)
+            ->where('date', $date)
+            ->get();
+
+        $slots = [];
+        $slotDurationMinutes = 60; // Configurable gap
+
+        // 3. Loop through EVERY shift they are working that day
+       // 3. Loop through EVERY shift they are working that day
+foreach ($schedules as $schedule) {
+    // Force the parsing to use your server's timezone (or UTC if you prefer)
+    $start = \Carbon\Carbon::parse($date . ' ' . $schedule->start_time);
+    $end = \Carbon\Carbon::parse($date . ' ' . $schedule->end_time);
+
+    // Failsafe: Correct 12-hour AM/PM confusion
+    if ($end->lte($start)) {
+        $end->addHours(12);
+    }
+
+    $tempStart = $start->copy();
+    $now = \Carbon\Carbon::now(); // Current time
+
+    while ($tempStart->copy()->addMinutes($slotDurationMinutes)->lte($end)) {
+        $slotStart = $tempStart->format('H:i:s');
+        $slotEnd = $tempStart->copy()->addMinutes($slotDurationMinutes)->format('H:i:s');
+        
+        // ✨ THE IMPROVED TIME-GATE:
+        // Only skip if the date is TODAY AND the slot end time has passed
+        $isToday = ($date === $now->format('Y-m-d'));
+        $slotEndDateTime = \Carbon\Carbon::parse($date . ' ' . $slotEnd);
+        
+        $skipSlot = ($isToday && $slotEndDateTime->lte($now));
+
+        if (!$skipSlot) {
+            $isBooked = $booked->contains(function ($item) use ($slotStart, $slotEnd) {
+                // Ensure we are comparing simple time strings (H:i:s)
+                $itemStart = \Carbon\Carbon::parse($item->start_time)->format('H:i:s');
+                $itemEnd = \Carbon\Carbon::parse($item->end_time)->format('H:i:s');
+                
+                return ($slotStart < $itemEnd && $slotEnd > $itemStart);
+            });
+            
+            if (!$isBooked) {
+                // Prevent duplicate slots
+                $slotExists = collect($slots)->contains(function($s) use ($slotStart, $slotEnd) {
+                    return $s['start'] === $slotStart && $s['end'] === $slotEnd;
+                });
+                
+                if (!$slotExists) {
+                    $slots[] = ['start' => $slotStart, 'end' => $slotEnd];
+                }
+            }
+        }
+        
+        $tempStart->addMinutes($slotDurationMinutes);
+    }
+}
+
+        // 4. Sort all slots chronologically just to be safe
+        usort($slots, function($a, $b) {
+            return strcmp($a['start'], $b['start']);
+        });
+
+        return response()->json(['success' => true, 'available_slots' => $slots]);
+        
+    } catch (\Exception $e) {
+        \Log::error('Availability Error: ' . $e->getMessage());
+        return response()->json(['success' => false, 'message' => 'Server error: ' . $e->getMessage()], 500);
+    }
+}
 }

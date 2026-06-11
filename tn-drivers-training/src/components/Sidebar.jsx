@@ -66,6 +66,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { name: "Fleet", icon: "🚗", path: "/Fleet", section: "Main" },
     { name: "Packages", icon: "📦", path: "/Packages", section: "Finance" },
     { name: "Payments", icon: "💳", path: "/Payments", section: "Finance" },
+    { name: "Invoices", icon: "🧾", path: "/Invoice", section: "Finance" } ,
     { name: "Expenses", icon: "🧾", path: "/Finances", section: "Finance" },
     { name: "Schedule", icon: "📅", path: "/Schedule", section: "System" },
   ];

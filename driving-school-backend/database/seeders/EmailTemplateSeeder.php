@@ -61,7 +61,95 @@ class EmailTemplateSeeder extends Seeder
                 'email_body' => "Hello {student_name},\n\nA new driving lesson has been scheduled for you.\n\nInstructor: {instructor_name}\nDate: {date}\nTime: {time}\nPickup Location: {pickup_location}\nTopic: {topic}\n\nWe look forward to seeing you!\n\nBest regards,\nDriving School",
                 'sms_body' => null,
                 'placeholders' => '{student_name}, {instructor_name}, {date}, {time}, {pickup_location}, {topic}'
-            ]
+            ],
+            [
+                'name' => 'Reschedule Rejected',
+                'slug' => 'reschedule_rejected',
+                'subject' => 'Reschedule Request Update',
+                'email_body' => "<p>Hello {student_name},</p><p>We are sorry to inform you that your request to reschedule on {requested_date} was rejected by <strong>{updated_by}</strong>.</p><p>Please keep your original appointment or contact support for further assistance.</p>",
+                'sms_body' => 'Your reschedule request was rejected by {updated_by}.',
+                'placeholders' => '{student_name}, {requested_date}, {updated_by}'
+            ],
+            [
+                'name' => 'Instructor Schedule Updated',
+                'slug' => 'instructor_schedule_updated',
+                'subject' => 'Schedule Updated: {student_name}',
+                'email_body' => "<p>Hello {instructor_name},</p><p>Your schedule has been updated by <strong>Admin</strong> regarding student <strong>{student_name}</strong>.</p><p>New Date: {new_date}<br>New Time: {new_time}</p>",
+                'sms_body' => 'Your schedule updated for {student_name} on {new_date}.',
+                'placeholders' => '{instructor_name}, {student_name}, {new_date}, {new_time}'
+            ],
+            [
+                'name' => 'Admin Reschedule Request Alert',
+                'slug' => 'admin_reschedule_request_alert',
+                'subject' => 'New Reschedule Request: {student_name}',
+                'email_body' => "<h3>New Reschedule Request</h3><p>Hello Admin,</p><p><strong>{student_name}</strong> has requested to reschedule their session.</p><p><strong>Details:</strong><br>Requested Date: {requested_date}<br>Requested Time: {requested_time}<br>Reason: {reason}</p><p>Please log in to your Admin Dashboard to approve or reject this request.</p>",
+                'sms_body' => 'New reschedule request from {student_name} for {requested_date}.',
+                'placeholders' => '{student_name}, {requested_date}, {requested_time}, {reason}'
+            ],
+            [
+                'name' => 'Package Approval Invoice',
+                'slug' => 'package_approval_invoice',
+                'subject' => 'Deposit Invoice - {package_name} | Terra Nova Driving School',
+                'email_body' => <<<'EOT'
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice {invoice_number}</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; background: #ffffff; }
+        .header { background: #0d9488; padding: 30px; text-align: center; color: white; }
+        .content { padding: 30px; }
+        .invoice-details { background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .amount { font-size: 24px; font-weight: bold; color: #0d9488; text-align: center; padding: 20px; }
+        .button { display: inline-block; padding: 12px 24px; background-color: #0d9488; color: white; text-decoration: none; border-radius: 6px; }
+        .footer { background: #f9fafb; padding: 20px; text-align: center; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{company_name}</h1>
+            <p>Your Invoice is Ready</p>
+        </div>
+        <div class="content">
+            <p>Dear <strong>{student_name}</strong>,</p>
+            <p>Your application for <strong>{package_name}</strong> has been approved! Please find your invoice below:</p>
+            
+            <div class="invoice-details">
+                <p><strong>Invoice Number:</strong> {invoice_number}</p>
+                <p><strong>Date:</strong> {invoice_date}</p>
+                <p><strong>Course:</strong> {package_name}</p>
+            </div>
+            
+            <div class="amount">
+                Total Amount: ${total_amount} CAD
+            </div>
+            
+            <div style="background: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <p><strong>💰 Payment Instructions:</strong><br>
+                Send Interac e-Transfer to: <strong>{company_email}</strong><br>
+                Auto-deposit is enabled. Please include your full name in the notes.</p>
+            </div>
+            
+            <div style="text-align: center;">
+                <a href="{invoice_link}" class="button">View Full Invoice</a>
+            </div>
+        </div>
+        <div class="footer">
+            <p>{company_name}<br>
+            {company_address}<br>
+            📧 {company_email} | 📞 {company_phone}</p>
+        </div>
+    </div>
+</body>
+</html>
+EOT
+                ,
+                'sms_body' => 'Deposit invoice for {package_name} is ready. Total: ${total_amount}, Deposit Due: ${balance_due}. Please check your email for details.',
+                'placeholders' => '{student_name}, {student_email}, {student_address}, {package_name}, {package_description}, {total_amount}, {amount_paid}, {balance_due}, {invoice_number}, {invoice_date}, {invoice_type}, {status_text}, {company_name}, {company_address}, {company_city}, {company_province}, {company_postal_code}, {company_email}, {company_phone}, {payment_instructions_section}'
+            ],
         ];
 
         $this->command->info('Checking email templates...');

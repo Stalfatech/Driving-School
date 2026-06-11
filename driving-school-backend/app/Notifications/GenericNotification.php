@@ -33,22 +33,36 @@ class GenericNotification extends Notification implements ShouldQueue
         ]);
     }
 
-    private function generateMessage()
-    {
-        switch ($this->type) {
-            case 'student_reschedule_request':
-                $student = $this->data['student_name'] ?? 'A student';
-                return "{$student} requested to reschedule a lesson.";
-            case 'student_assignment_updated':
-                $instructor = $this->data['instructor_name'] ?? 'Your instructor';
-                $date = $this->data['new_date'] ?? 'a new date';
-                return "Your lesson has been rescheduled by {$instructor} to {$date}.";
-            case 'student_new_assignment':
-                $instructor = $this->data['instructor_name'] ?? 'Your instructor';
-                $date = $this->data['date'] ?? 'upcoming date';
-                return "New lesson scheduled with {$instructor} on {$date}.";
-            default:
-                return 'New notification';
-        }
+    private static function generatePreviewMessage($slug, $data)
+{
+    switch ($slug) {
+        case 'admin_reschedule_request_alert':
+            $student = $data['student_name'] ?? 'A student';
+            return "New reschedule request from {$student}.";
+            
+        case 'student_reschedule_request':
+            $student = $data['student_name'] ?? 'A student';
+            return "{$student} requested to reschedule a lesson.";
+            
+        case 'student_assignment_updated':
+            $instructor = $data['instructor_name'] ?? 'Your instructor';
+            $date = $data['new_date'] ?? 'a new date';
+            return "Your lesson has been rescheduled by {$instructor} to {$date}.";
+            
+        case 'instructor_schedule_updated':
+            $student = $data['student_name'] ?? 'student';
+            return "Your schedule has been updated for {$student}.";
+            
+        case 'reschedule_rejected':
+            return "Your reschedule request was rejected.";
+
+        case 'student_new_assignment':
+            $instructor = $data['instructor_name'] ?? 'Your instructor';
+            $date = $data['date'] ?? 'upcoming date';
+            return "New lesson scheduled with {$instructor} on {$date}.";
+            
+        default:
+            return "You have a new notification.";
     }
+}
 }

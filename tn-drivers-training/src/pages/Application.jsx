@@ -1,11 +1,16 @@
+
+
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import ApplicationModal from '../components/ApplicationReviewModal';
+import RejectionModal from '../components/RejectionModal';
 import Pagination from '../components/Pagination';
 import { 
   Search, ScanEye, MapPin, Mail, Trash2, 
-  AlertCircle
+  AlertCircle, X, Loader2
 } from 'lucide-react';
+
+const API_BASE = "http://localhost:8000/api";
 
 const Applications = () => {
   // 1. STATE MANAGEMENT
@@ -18,11 +23,15 @@ const Applications = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [paginationMeta, setPaginationMeta] = useState({ last_page: 1, total: 0 });
 
-  // 2. FETCH LOCATIONS
+  // 2. NEW REJECTION STATES
+  const [rejectApp, setRejectApp] = useState(null); 
+  const [isRejecting, setIsRejecting] = useState(false); 
+
+  // FETCH LOCATIONS
   const fetchLocations = useCallback(async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await axios.get(`http://127.0.0.1:8000/api/locations`, {
+      const response = await axios.get(`${API_BASE}/locations`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data && response.data.data) {
@@ -37,7 +46,6 @@ const Applications = () => {
     fetchLocations();
   }, [fetchLocations]);
 
-  // Calculate age from DOB
   const calculateAge = (dob) => {
     if (!dob) return 18;
     const birthDate = new Date(dob);
@@ -50,13 +58,12 @@ const Applications = () => {
     return age;
   };
 
-  // Get priority based on age
   const getPriority = (age) => {
     if (age < 18) return 'Normal';
     return 'High';
   };
 
-  // 3. FETCH APPLICATIONS
+  // FETCH APPLICATIONS
   const fetchApplications = useCallback(async (pageNumber = 1) => {
     setLoading(true);
     try {
@@ -75,7 +82,7 @@ const Applications = () => {
         params.append('location', locationFilter);
       }
 
-      const response = await axios.get(`http://127.0.0.1:8000/api/students?${params}`, {
+      const response = await axios.get(`${API_BASE}/students?${params}`, {
         headers: { 
           Authorization: `Bearer ${token}`,
           Accept: 'application/json'
@@ -94,7 +101,6 @@ const Applications = () => {
         const mappedData = rawData.map(item => {
           const age = calculateAge(item.dob);
           const priority = getPriority(age);
-          
           let locationName = item.province_name_text || 'N/A';
           
           return {
@@ -107,6 +113,7 @@ const Applications = () => {
             location: locationName,
             priority: priority,
             status: item.user?.status || 'pending',
+            paymentStatus: item.paymentStatus || 'Due',
           };
         });
         
@@ -119,7 +126,6 @@ const Applications = () => {
     }
   }, [searchTerm, locationFilter]);
 
-  // Debounced search
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       fetchApplications(1);
@@ -127,20 +133,27 @@ const Applications = () => {
     return () => clearTimeout(delayDebounceFn);
   }, [searchTerm, locationFilter, fetchApplications]);
 
-  // 4. DELETE FUNCTION
-  const handleDelete = async (db_id, studentName, e) => {
+  const openRejectModal = (db_id, studentName, e) => {
     e?.stopPropagation();
-    const confirmDelete = window.confirm(`Are you sure you want to delete the application for "${studentName}"?`);
-    if (confirmDelete) {
-      try {
-        const token = localStorage.getItem('access_token');
-        await axios.delete(`http://127.0.0.1:8000/api/students/${db_id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        fetchApplications(currentPage);
-      } catch (error) {
-        alert("Failed to delete application.");
-      }
+    setRejectApp({ id: db_id, name: studentName });
+  };
+
+  const handleRejectSubmit = async (reason) => {
+    setIsRejecting(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      await axios.post(`${API_BASE}/students/${rejectApp.id}/reject`, 
+        { rejection_reason: reason },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      setRejectApp(null); 
+      fetchApplications(currentPage); 
+    } catch (error) {
+      console.error("Error rejecting application:", error);
+      alert(error.response?.data?.message || "Failed to reject application.");
+    } finally {
+      setIsRejecting(false);
     }
   };
 
@@ -150,7 +163,6 @@ const Applications = () => {
     }
   };
 
-  // Calculate items per page from total and last_page
   const itemsPerPage = paginationMeta.total > 0 && paginationMeta.last_page > 0 
     ? Math.ceil(paginationMeta.total / paginationMeta.last_page) 
     : 2;
@@ -174,7 +186,6 @@ const Applications = () => {
           <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 sm:gap-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex gap-2 sm:gap-3 flex-1">
               
-              {/* Branch Filter */}
               <select 
                 value={locationFilter} 
                 onChange={(e) => setLocationFilter(e.target.value)}
@@ -186,7 +197,6 @@ const Applications = () => {
                 ))}
               </select>
 
-              {/* Total Count Badge */}
               <div className="hidden md:flex items-center px-4 py-2 bg-amber-500/10 border border-amber-500/20 rounded-xl">
                 <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">
                   {paginationMeta.total} Pending Applications
@@ -194,7 +204,7 @@ const Applications = () => {
               </div>
             </div>
 
-            {/* Search Bar */}
+            {/* NEW SEARCH BAR WITH 'X' CLEAR BUTTON */}
             <div className="relative w-full lg:max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
               <input
@@ -202,8 +212,17 @@ const Applications = () => {
                 placeholder="Search name or email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm dark:text-slate-300 outline-none focus:ring-2 focus:ring-teal-500/20 transition-all shadow-sm"
+                className="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm dark:text-slate-300 outline-none focus:ring-2 focus:ring-teal-500/20 transition-all shadow-sm"
               />
+              {searchTerm && (
+                <button
+                  onClick={() => { setSearchTerm(''); setCurrentPage(1); }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-md text-slate-500 transition-colors"
+                  title="Clear search"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -247,6 +266,21 @@ const Applications = () => {
                     <MapPin size={14} className="text-teal-500 shrink-0" /> 
                     <span className="truncate">{app.location}</span>
                   </div>
+                  
+                  {app.status === 'awaiting_payment' && (app.paymentStatus === 'Deposit Paid' || app.paymentStatus === 'Paid') && (
+                    <div className="pt-2">
+                       <span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-1 rounded font-bold uppercase tracking-wider border border-blue-200">
+                         Deposit Paid - Ready to Activate
+                       </span>
+                    </div>
+                  )}
+                  {app.status === 'awaiting_payment' && app.paymentStatus === 'Awaiting Payment' && (
+                    <div className="pt-2">
+                       <span className="bg-amber-100 text-amber-700 text-[10px] px-2 py-1 rounded font-bold uppercase tracking-wider border border-amber-200">
+                         Awaiting Deposit
+                       </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-2">
@@ -257,7 +291,7 @@ const Applications = () => {
                     <ScanEye size={16} /> Review
                   </button>
                   <button 
-                    onClick={(e) => handleDelete(app.db_id, app.name, e)} 
+                    onClick={(e) => openRejectModal(app.db_id, app.name, e)} 
                     className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 transition-all"
                   >
                     <Trash2 size={18} />
@@ -302,6 +336,21 @@ const Applications = () => {
                         <td className="px-4 lg:px-6 py-4 lg:py-5">
                           <div className="text-sm lg:text-base font-semibold text-slate-800 dark:text-white">{app.name}</div>
                           <div className="text-xs lg:text-sm text-slate-500 dark:text-slate-400">{app.email}</div>
+                          
+                          {app.status === 'awaiting_payment' && (app.paymentStatus === 'Deposit Paid' || app.paymentStatus === 'Paid') && (
+                              <div className="mt-1 inline-flex">
+                                <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider border border-blue-200 dark:border-blue-800">
+                                  Deposit Paid - Ready
+                                </span>
+                              </div>
+                            )}
+                            {app.status === 'awaiting_payment' && app.paymentStatus === 'Awaiting Payment' && (
+                              <div className="mt-1 inline-flex">
+                                <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider border border-amber-200 dark:border-amber-800">
+                                  Awaiting Deposit
+                                </span>
+                              </div>
+                            )}
                         </td>
                         <td className="px-4 lg:px-6 py-4 lg:py-5">
                           <div className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -328,9 +377,9 @@ const Applications = () => {
                               <ScanEye size={20} />
                             </button>
                             <button 
-                              onClick={(e) => handleDelete(app.db_id, app.name, e)} 
+                              onClick={(e) => openRejectModal(app.db_id, app.name, e)} 
                               className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
-                              title="Delete Application"
+                              title="Reject Application"
                             >
                               <Trash2 size={18} />
                             </button>
@@ -387,6 +436,15 @@ const Applications = () => {
           onRefresh={() => fetchApplications(currentPage)}
         />
       )}
+
+      {/* REJECTION MODAL COMPONENT */}
+      <RejectionModal 
+        isOpen={!!rejectApp}
+        onClose={() => setRejectApp(null)}
+        onSubmit={handleRejectSubmit}
+        studentName={rejectApp?.name}
+        isRejecting={isRejecting}
+      />
     </div>
   );
 };

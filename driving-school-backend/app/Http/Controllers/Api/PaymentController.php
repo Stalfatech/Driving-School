@@ -26,9 +26,9 @@ class PaymentController extends Controller
 
             // 1. Find the active enrolment for this student
             $enrolment = Enrolment::where('student_id', $validated['student_id'])
-                ->where('status', 'active')
-                ->latest()
-                ->first();
+            ->whereIn('status', ['active', 'pending_payment']) 
+            ->latest()
+            ->first();
 
             if (!$enrolment) {
                 return response()->json([
@@ -480,4 +480,5 @@ public function index(Request $request)
         }
     }
 
+    
 }

@@ -19,6 +19,7 @@ import InstructorFleet from "../pages/Instructors";
 import FleetManagement from "../pages/Fleetmanagement";
 import Finances from "../pages/Finances";
 import Settings from "../pages/Settings";
+import InvoiceManager from "../pages/InvoiceManager";
 // ... other admin imports
 
 // Instructor Pages
@@ -35,6 +36,9 @@ import TestEvaluationPage from "../pages/student/TestEvaluate";
 import StudentNotificationPage from "../pages/student/StudentNotificationPage";
 import MyPackages from "../pages/student/MyPackages";
 import StudentProfile from "../pages/student/StudentProfile";
+import StudentPayments from "../pages/student/StudentPayments";
+
+
 
 
 const AppRoutes = () => {
@@ -57,6 +61,7 @@ const AppRoutes = () => {
         <Route path="/Payments" element={<Payments />} />
         <Route path="/Applications" element={<Application />} />
         <Route path="/Instructors" element={<InstructorFleet />} />
+        <Route path="/Invoice" element={<InvoiceManager />} />"
         <Route path="/Fleet" element={<FleetManagement />} />
         <Route path="/Finances" element={<Finances />} />
         <Route path="/Settings" element={<Settings />} />
@@ -77,6 +82,7 @@ const AppRoutes = () => {
         <Route path="notifications" element={<StudentNotificationPage />} />
         <Route path="mypackage" element={<MyPackages />} />
         <Route path="profile" element={<StudentProfile />} />
+        <Route path="payments" element={<StudentPayments />} />
       </Route>
 
     </Routes>

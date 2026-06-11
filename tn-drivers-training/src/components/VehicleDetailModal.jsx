@@ -1,12 +1,13 @@
 
 import React, { useState } from 'react';
+import axios from 'axios';
 import {
     X, Car, Hash, Palette, MapPin,
     Gauge, Edit3, Save,
-    ChevronDown, ShieldCheck, Trash2, CalendarDays, FileText, Bookmark, User, AlertCircle
+    ChevronDown, ShieldCheck, Trash2, CalendarDays, FileText, Bookmark, User, AlertCircle, CheckCircle
 } from 'lucide-react';
 
-const BASE_URL = 'http://localhost:8000/api';
+const BASE_URL = 'http://127.0.0.1:8000/api';
 
 const VehicleDetailModal = ({ 
     vehicle, 
@@ -28,10 +29,12 @@ const VehicleDetailModal = ({
         insuranceExpiry: formatDate(vehicle.insuranceExpiry),
         rcExpiry: formatDate(vehicle.rcExpiry)
     });
+    
     const [newFile, setNewFile] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [errors, setErrors] = useState({});
+    const [errors, setErrors] = useState({}); // Unified Frontend & Backend errors
     const [saveSuccess, setSaveSuccess] = useState(false);
+    const [notification, setNotification] = useState(null); // Custom alert banner
 
     const token = localStorage.getItem('access_token') || localStorage.getItem('token');
 
@@ -40,13 +43,50 @@ const VehicleDetailModal = ({
                               vehicle.instructor !== null && 
                               vehicle.instructor !== 'Unassigned';
 
+    const showNotification = (type, message) => {
+        setNotification({ type, message });
+        if (type !== 'success') {
+            setTimeout(() => setNotification(null), 5000);
+        }
+    };
+
+    // Auto-clears errors when the user types
+    const handleChange = (field, backendKey, value) => {
+        let finalValue = value;
+        if (field === 'plate') finalValue = value.toUpperCase();
+
+        setFormData({ ...formData, [field]: finalValue });
+        
+        if (errors[backendKey]) {
+            setErrors(prev => ({ ...prev, [backendKey]: null }));
+        }
+    };
+
     const handleSave = async () => {
-        setLoading(true);
         setErrors({});
+        setNotification(null);
         setSaveSuccess(false);
 
+        // Strict Frontend Validations
+        let frontendErrors = {};
+        if (!formData.name?.trim()) frontendErrors.car_name = ["Vehicle name is required."];
+        if (!formData.plate?.trim()) frontendErrors.number_plate = ["License plate is required."];
+        if (!formData.insuranceNo?.trim()) frontendErrors.insurance_number = ["Insurance policy number is required."];
+        if (!formData.rcNo?.trim()) frontendErrors.rc_number = ["Vehicle permit number is required."];
+        if (!formData.insuranceExpiry) frontendErrors.insurance_expiry = ["Insurance expiry date is required."];
+        if (!formData.rcExpiry) frontendErrors.rc_expiry = ["Permit expiry date is required."];
+        if (!formData.location_id && !formData.location) frontendErrors.location_id = ["Assigned location is required."];
+
+        if (Object.keys(frontendErrors).length > 0) {
+            setErrors(frontendErrors);
+            showNotification('warning', 'Please fill  the highlighted area before saving.');
+            return;
+        }
+
+        setLoading(true);
+
         const data = new FormData();
-        data.append('_method', 'POST');
+        data.append('_method', 'POST'); // Laravel convention for updating records with files via POST
         data.append('car_name', formData.name || '');
         data.append('model', formData.model || '');
         data.append('number_plate', formData.plate || '');
@@ -70,33 +110,35 @@ const VehicleDetailModal = ({
         }
 
         try {
-            const res = await fetch(`${BASE_URL}/cars/${vehicle.id}`, {
-                method: 'POST',
+            const res = await axios.post(`${BASE_URL}/cars/${vehicle.id}`, data, {
                 headers: { 
                     'Authorization': `Bearer ${token}`,
                     'Accept': 'application/json',
-                },
-                body: data,
+                    'Content-Type': 'multipart/form-data'
+                }
             });
 
-            const json = await res.json();
-
-            if (res.ok) {
+            if (res.data.success) {
                 setIsEditing(false);
                 setNewFile(null);
                 setSaveSuccess(true);
                 setTimeout(() => setSaveSuccess(false), 3000);
+                showNotification('success', 'Vehicle updated successfully!');
                 if (onUpdate) onUpdate();
-            } else if (res.status === 401) {
-                alert("Session expired. Please log in again.");
-            } else if (res.status === 422) {
-                setErrors(json.errors || {});
-            } else {
-                alert(json.message || 'Update failed.');
             }
         } catch (err) {
             console.error("Save Error:", err);
-            alert('Network error. Check if your backend is running.');
+            
+            if (err.response?.status === 401) {
+                showNotification('error', 'Session expired. Please log in again.');
+            } else if (err.response?.status === 422) {
+                setErrors(err.response.data.errors || {});
+                showNotification('warning', 'Please fix the highlighted validation errors below.');
+            } else if (err.response?.status >= 500) {
+                showNotification('error', 'A server error occurred. Please try again later.');
+            } else {
+                showNotification('error', err.response?.data?.message || 'Update failed.');
+            }
         } finally {
             setLoading(false);
         }
@@ -117,7 +159,22 @@ const VehicleDetailModal = ({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4">
-            <div className="bg-white dark:bg-slate-950 w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
+            <div className="relative bg-white dark:bg-slate-950 w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
+
+                {/* INLINE NOTIFICATION BANNER */}
+                {notification && (
+                    <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-4 fade-in duration-300 ${
+                        notification.type === 'success' ? 'bg-emerald-500 text-white' : 
+                        notification.type === 'warning' ? 'bg-amber-500 text-white' : 
+                        'bg-rose-500 text-white'
+                    }`}>
+                        {notification.type === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
+                        <span className="text-sm font-bold">{notification.message}</span>
+                        {notification.type !== 'success' && (
+                            <button onClick={() => setNotification(null)} className="ml-2 hover:opacity-75"><X size={16}/></button>
+                        )}
+                    </div>
+                )}
 
                 {/* Header */}
                 <div className="flex items-center justify-between px-8 py-6 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shrink-0">
@@ -150,7 +207,7 @@ const VehicleDetailModal = ({
                         )}
                         <button 
                             onClick={onClose} 
-                            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 transition-colors"
+                            className="p-2 hover:bg-slate-100 dark:bg-slate-800 rounded-lg hover:text-red-500 text-slate-400 transition-colors"
                             title="Close"
                         >
                             <X size={20} />
@@ -182,34 +239,35 @@ const VehicleDetailModal = ({
                                 label="Vehicle Name" 
                                 value={formData.name} 
                                 isEditing={isEditing} 
-                                onChange={v => setFormData({...formData, name: v})} 
+                                onChange={v => handleChange('name', 'car_name', v)} 
                                 error={errors.car_name?.[0]} 
-                                required
+                                isRequired={true}
                             />
                             <DataField 
                                 icon={<Car size={14}/>} 
-                                label="Model" 
+                                label="Model / Year" 
                                 value={formData.model} 
                                 isEditing={isEditing} 
-                                onChange={v => setFormData({...formData, model: v})} 
+                                onChange={v => handleChange('model', 'model', v)} 
                                 error={errors.model?.[0]} 
+                                isRequired={true}
                             />
                             <DataField 
                                 icon={<Hash size={14}/>} 
                                 label="Plate Number" 
                                 value={formData.plate} 
                                 isEditing={isEditing} 
-                                onChange={v => setFormData({...formData, plate: v})} 
+                                onChange={v => handleChange('plate', 'number_plate', v)} 
                                 className="uppercase" 
                                 error={errors.number_plate?.[0]} 
-                                required
+                                isRequired={true}
                             />
                             <DataField 
                                 icon={<Palette size={14}/>} 
                                 label="Color" 
                                 value={formData.color} 
                                 isEditing={isEditing} 
-                                onChange={v => setFormData({...formData, color: v})} 
+                                onChange={v => handleChange('color', 'color', v)} 
                                 error={errors.color?.[0]} 
                             />
                             <DataField 
@@ -218,7 +276,7 @@ const VehicleDetailModal = ({
                                 value={formData.km} 
                                 isEditing={isEditing} 
                                 type="number" 
-                                onChange={v => setFormData({...formData, km: v})} 
+                                onChange={v => handleChange('km', 'odometer', v)} 
                                 error={errors.odometer?.[0]} 
                             />
                         </div>
@@ -237,8 +295,9 @@ const VehicleDetailModal = ({
                                     label="Insurance Number" 
                                     value={formData.insuranceNo} 
                                     isEditing={isEditing} 
-                                    onChange={v => setFormData({...formData, insuranceNo: v})} 
+                                    onChange={v => handleChange('insuranceNo', 'insurance_number', v)} 
                                     error={errors.insurance_number?.[0]} 
+                                    isRequired={true}
                                 />
                                 <DataField 
                                     icon={<CalendarDays size={14}/>} 
@@ -246,8 +305,9 @@ const VehicleDetailModal = ({
                                     value={formData.insuranceExpiry} 
                                     isEditing={isEditing} 
                                     type="date" 
-                                    onChange={v => setFormData({...formData, insuranceExpiry: v})} 
+                                    onChange={v => handleChange('insuranceExpiry', 'insurance_expiry', v)} 
                                     error={errors.insurance_expiry?.[0]} 
+                                    isRequired={true}
                                 />
                             </div>
                             <div className="space-y-5">
@@ -256,8 +316,9 @@ const VehicleDetailModal = ({
                                     label="RC Number" 
                                     value={formData.rcNo} 
                                     isEditing={isEditing} 
-                                    onChange={v => setFormData({...formData, rcNo: v})} 
+                                    onChange={v => handleChange('rcNo', 'rc_number', v)} 
                                     error={errors.rc_number?.[0]} 
+                                    isRequired={true}
                                 />
                                 <DataField 
                                     icon={<CalendarDays size={14}/>} 
@@ -265,8 +326,9 @@ const VehicleDetailModal = ({
                                     value={formData.rcExpiry} 
                                     isEditing={isEditing} 
                                     type="date" 
-                                    onChange={v => setFormData({...formData, rcExpiry: v})} 
+                                    onChange={v => handleChange('rcExpiry', 'rc_expiry', v)} 
                                     error={errors.rc_expiry?.[0]} 
+                                    isRequired={true}
                                 />
                             </div>
                         </div>
@@ -284,6 +346,7 @@ const VehicleDetailModal = ({
                             <div className="flex flex-col gap-1.5">
                                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
                                     <MapPin size={14} className="text-teal-500" /> Branch Location
+                                    {isEditing && !formData.location_id && !formData.location && <span className="text-red-500 animate-pulse">*</span>}
                                 </label>
                                 {isEditing ? (
                                     isVehicleAssigned ? (
@@ -294,12 +357,15 @@ const VehicleDetailModal = ({
                                     ) : (
                                         <div className="relative">
                                             <select
-                                                className="w-full px-4 py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none appearance-none cursor-pointer transition-all"
+                                                className={`w-full px-4 py-2.5 rounded-lg bg-white dark:bg-slate-900 border text-sm font-medium text-slate-900 dark:text-white appearance-none cursor-pointer transition-all outline-none ${
+                                                    errors.location_id ? 'border-red-500 focus:ring-red-500/20' : 'border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500'
+                                                }`}
                                                 value={formData.location_id || ''}
                                                 onChange={(e) => {
                                                     const id = parseInt(e.target.value);
                                                     const loc = locations.find(l => l.id === id);
                                                     setFormData({ ...formData, location_id: id, location: loc?.name || '' });
+                                                    if (errors.location_id) setErrors(prev => ({...prev, location_id: null}));
                                                 }}
                                             >
                                                 <option value="">Select Location</option>
@@ -318,7 +384,7 @@ const VehicleDetailModal = ({
                                     </div>
                                 )}
                                 {errors.location_id?.[0] && (
-                                    <p className="text-xs text-rose-500 font-medium">{errors.location_id[0]}</p>
+                                    <p className="text-[10px] text-red-500 font-mono mt-0.5">{errors.location_id[0]}</p>
                                 )}
                             </div>
 
@@ -334,7 +400,7 @@ const VehicleDetailModal = ({
                                 }`}>
                                     {isVehicleAssigned ? vehicle.instructor : 'Unassigned'}
                                 </div>
-                                {isVehicleAssigned && (
+                                {isEditing && isVehicleAssigned && (
                                     <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-1">
                                         <AlertCircle size={12} />
                                         Cannot edit while assigned
@@ -373,11 +439,17 @@ const VehicleDetailModal = ({
                                                 type="file" 
                                                 accept=".pdf,.jpg,.png" 
                                                 className="hidden" 
-                                                onChange={(e) => setNewFile(e.target.files[0])} 
+                                                onChange={(e) => {
+                                                    setNewFile(e.target.files[0]);
+                                                    if(errors.car_document) setErrors(prev => ({...prev, car_document: null}));
+                                                }} 
                                             />
                                         </label>
                                     )}
                                 </div>
+                                {errors.car_document?.[0] && (
+                                    <p className="text-[10px] text-red-400 font-mono mt-1">{errors.car_document[0]}</p>
+                                )}
                             </div>
                         </div>
                         <ShieldCheck size={100} className="absolute -right-8 -bottom-8 text-white opacity-5 rotate-12" />
@@ -391,6 +463,7 @@ const VehicleDetailModal = ({
                                     onClick={() => { 
                                         setIsEditing(false); 
                                         setErrors({}); 
+                                        setNotification(null);
                                         setFormData({ 
                                             ...vehicle,
                                             insuranceExpiry: formatDate(vehicle.insuranceExpiry),
@@ -435,27 +508,30 @@ const VehicleDetailModal = ({
     );
 };
 
-// Reusable DataField component
-const DataField = ({ icon, label, value, isEditing, onChange, type = 'text', className = '', error, required = false }) => (
+// Unified DataField component with dynamic asterisk and red borders
+const DataField = ({ icon, label, value, isEditing, onChange, type = 'text', className = '', error, isRequired = false }) => (
     <div className="flex flex-col gap-1.5">
         <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
             <span className="text-teal-500">{icon}</span> {label}
-            {required && <span className="text-red-500 text-xs">*</span>}
+            {isRequired && !value && isEditing && <span className="text-red-500 animate-pulse">*</span>}
         </label>
         {isEditing ? (
             <input
                 type={type}
-                className={`w-full px-4 py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all ${className}`}
+                className={`w-full px-4 py-2.5 rounded-lg bg-white dark:bg-slate-900 border text-sm font-medium text-slate-900 dark:text-white outline-none transition-all ${
+                    error 
+                    ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500' 
+                    : 'border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500'
+                } ${className}`}
                 value={value || ''}
                 onChange={(e) => onChange(e.target.value)}
-                required={required}
             />
         ) : (
             <div className={`px-4 py-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-800 dark:text-white ${className}`}>
                 {value || <span className="text-slate-400">Not Set</span>}
             </div>
         )}
-        {error && <p className="text-xs text-red-500 font-medium mt-0.5">{error}</p>}
+        {error && <p className="text-[10px] text-red-500 font-sora mt-0.5 ml-1">{error}</p>}
     </div>
 );
 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import InstructorDetailModal from '../components/InstructorDetailModal';
@@ -7,7 +6,7 @@ import Pagination from '../components/Pagination';
 import { 
   Search, ScanEye, MapPin, Mail, Phone, Calendar, 
   Trash2, UserPlus, Download, Plus, ChevronRight, AlertCircle,
-  Loader2, UserCheck, UserX, Car
+  Loader2, UserCheck, UserX, Car, X
 } from 'lucide-react';
  
 const Instructors = () => {
@@ -101,39 +100,40 @@ const Instructors = () => {
       ins.user?.email?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesLocation && matchesStatus && matchesSearch;
   });
-const [exporting, setExporting] = useState(false);
+
+  const [exporting, setExporting] = useState(false);
   const handleExport = async () => {
-  setExporting(true);
-  try {
-    const token = localStorage.getItem('access_token');
-    const params = new URLSearchParams();
+    setExporting(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const params = new URLSearchParams();
 
-    // Pass current filters to the backend so the export matches what you see
-    if (locationFilter !== 'All') params.append('location', locationFilter);
-    if (statusFilter !== 'All') params.append('status', statusFilter);
-    if (searchTerm) params.append('search', searchTerm);
+      // Pass current filters to the backend so the export matches what you see
+      if (locationFilter !== 'All') params.append('location', locationFilter);
+      if (statusFilter !== 'All') params.append('status', statusFilter);
+      if (searchTerm) params.append('search', searchTerm);
 
-    const response = await axios.get(`http://127.0.0.1:8000/api/instructors/export?${params}`, {
-      headers: { Authorization: `Bearer ${token}` },
-      responseType: 'blob'
-    });
+      const response = await axios.get(`http://127.0.0.1:8000/api/instructors/export?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: 'blob'
+      });
 
-    // Create a download link
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `instructors_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error("Export error:", error);
-    alert("Failed to export instructors. Please try again.");
-  } finally {
-    setExporting(false);
-  }
-};
+      // Create a download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `instructors_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Export error:", error);
+      alert("Failed to export instructors. Please try again.");
+    } finally {
+      setExporting(false);
+    }
+  };
  
   // Pagination logic
   const totalItems = filteredInstructors.length;
@@ -200,6 +200,7 @@ const [exporting, setExporting] = useState(false);
             </div>
           </div>
  
+          {/* SEARCH BAR WITH CLEAR BUTTON */}
           <div className="relative w-full lg:max-w-md">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
             <input
@@ -207,8 +208,17 @@ const [exporting, setExporting] = useState(false);
               placeholder="Search by Name, ID or Email..."
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-              className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm dark:text-slate-300 outline-none focus:ring-2 focus:ring-teal-500/20 transition-all shadow-sm"
+              className="w-full pl-11 pr-10 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm dark:text-slate-300 outline-none focus:ring-2 focus:ring-teal-500/20 transition-all shadow-sm"
             />
+            {searchTerm && (
+              <button
+                onClick={() => { setSearchTerm(''); setCurrentPage(1); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-md text-slate-500 transition-colors"
+                title="Clear search"
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
         </div>
       </header>

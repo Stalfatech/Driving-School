@@ -16,6 +16,7 @@ use App\Models\Instructor;
 use App\Models\PackageRequest;
 use App\Notifications\PackageRequestApprovedNotification;
 use App\Notifications\StudentAssignedNotification;
+use App\Notifications\SendDepositInvoiceNotification;
 
 
 class StudentController extends Controller
@@ -23,11 +24,20 @@ class StudentController extends Controller
     public function store(Request $request)
     {
         // 1. Validation
-        $validator = Validator::make($request->all(), [
+       $validator = Validator::make($request->all(), [
             // User Fields
             'name'             => 'required|string|max:255',
-            'email'            => 'required|email|unique:users,email',
-            'phone'            => 'required|string|unique:users,phone',
+            'email'            => [
+                                    'required', 
+                                    'email:rfc,dns', // <--- Strict DNS check added here!
+                                    \Illuminate\Validation\Rule::unique('users')->whereNull('deleted_at')
+                                ],
+            'phone'            => [
+                                    'required', 
+                                    'string', 
+                                    'min:10', // <--- Minimum length enforced!
+                                    \Illuminate\Validation\Rule::unique('users')->whereNull('deleted_at')
+                                ],
             'password'         => 'required|string|min:8',
             'profile_picture'    => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             
@@ -42,7 +52,7 @@ class StudentController extends Controller
             'country'          => 'required|string',
             'permit_number'    => 'nullable|string|unique:students',
             'permit_issue_date'=> 'nullable|date',
-            'has_foreign_license' => 'required', // Changed to allow flexible boolean input
+            'has_foreign_license' => 'required', 
             'foreign_license_number' => 'nullable|string'
         ]);
 
@@ -125,49 +135,125 @@ class StudentController extends Controller
         });
     }
 
+// public function index(Request $request)
+// {
+//     // 1. Start the query with relationships and the location join
+//     $query = Student::with(['user', 'package', 'instructor.user'])
+//         ->leftJoin('locations', 'students.province', '=', 'locations.id')
+//         ->select('students.*', 'locations.province_name as province_name_text');
+
+//     // 2. Filter by User Status (e.g., pending)
+//     if ($request->has('status')) {
+//         $status = $request->status;
+//         $query->whereHas('user', function($q) use ($status) {
+//             $q->where('status', $status);
+//         });
+//     }
+
+//     // 3. BACKEND SEARCH: Search by Name or Email
+//     if ($request->filled('search')) {
+//         $search = $request->search;
+//         $query->whereHas('user', function($q) use ($search) {
+//             $q->where('name', 'like', "%{$search}%")
+//               ->orWhere('email', 'like', "%{$search}%");
+//         });
+//     }
+
+//     // 4. BACKEND FILTER: Filter by Location ID
+//     if ($request->filled('location') && $request->location !== 'All') {
+//         $query->where('students.province', $request->location);
+//     }
+
+//     // 5. BACKEND PAGINATION: Get 10 results per page
+//     $students = $query->latest('students.created_at')->paginate(10);
+
+//     return response()->json([
+//         'success' => true,
+//         'data'    => $students->items(), // The actual student records
+//         'meta'    => [
+//             'current_page' => $students->currentPage(),
+//             'last_page'    => $students->lastPage(),
+//             'total'        => $students->total(),
+//         ]
+//     ]);
+// }
+
 public function index(Request $request)
-{
-    // 1. Start the query with relationships and the location join
-    $query = Student::with(['user', 'package', 'instructor.user'])
-        ->leftJoin('locations', 'students.province', '=', 'locations.id')
-        ->select('students.*', 'locations.province_name as province_name_text');
+    {
+        // 1. Eager Load Location
+        $query = Student::with(['user', 'package', 'instructor.user', 'location']);
 
-    // 2. Filter by User Status (e.g., pending)
-    if ($request->has('status')) {
-        $status = $request->status;
-        $query->whereHas('user', function($q) use ($status) {
-            $q->where('status', $status);
+        // 2. Filter by User Status
+        if ($request->filled('status')) {
+            $status = strtolower($request->status);
+            if ($status === 'pending') {
+                $query->whereHas('user', function($q) {
+                    $q->whereIn('status', ['pending', 'awaiting_payment']);
+                });
+            } else {
+                $query->whereHas('user', function($q) use ($status) {
+                    $q->where('status', $status);
+                });
+            }
+        }
+
+        // 3. Search
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->whereHas('user', function($q) use ($search) {
+                $q->where(function ($subQ) use ($search) {
+                    $subQ->where('name', 'like', "%{$search}%")
+                         ->orWhere('email', 'like', "%{$search}%");
+                });
+            });
+        }
+
+        // 4. Location Filter
+        if ($request->filled('location') && $request->location !== 'All') {
+            $query->where('province', $request->location);
+        }
+
+        // 5. Paginate
+        $perPage = $request->get('per_page', 10);
+        $students = $query->latest()->paginate($perPage);
+
+        // 6. Calculate payment data so the frontend can display the badge
+        $students->getCollection()->transform(function ($student) {
+            $student->province_name_text = $student->location ? $student->location->province_name : 'N/A';
+            
+            $enrolment = \App\Models\Enrolment::where('student_id', $student->id)
+                ->whereIn('status', ['active', 'paid', 'pending_payment'])
+                ->latest()
+                ->first();
+            
+            if ($enrolment) {
+                $totalToPay = $enrolment->total_amount;
+                $balanceDue = $enrolment->balance_due;
+                
+                if ($balanceDue <= 0) {
+                    $student->paymentStatus = 'Paid';
+                } elseif ($balanceDue <= ($totalToPay / 2)) {
+                    $student->paymentStatus = 'Deposit Paid'; // 50% or more is paid
+                } else {
+                    $student->paymentStatus = 'Awaiting Payment';
+                }
+            } else {
+                $student->paymentStatus = 'Due';
+            }
+            
+            return $student;
         });
+
+        return response()->json([
+            'success' => true,
+            'data'    => $students->items(), 
+            'meta'    => [
+                'current_page' => $students->currentPage(),
+                'last_page'    => $students->lastPage(),
+                'total'        => $students->total(),
+            ]
+        ]);
     }
-
-    // 3. BACKEND SEARCH: Search by Name or Email
-    if ($request->filled('search')) {
-        $search = $request->search;
-        $query->whereHas('user', function($q) use ($search) {
-            $q->where('name', 'like', "%{$search}%")
-              ->orWhere('email', 'like', "%{$search}%");
-        });
-    }
-
-    // 4. BACKEND FILTER: Filter by Location ID
-    if ($request->filled('location') && $request->location !== 'All') {
-        $query->where('students.province', $request->location);
-    }
-
-    // 5. BACKEND PAGINATION: Get 10 results per page
-    $students = $query->latest('students.created_at')->paginate(10);
-
-    return response()->json([
-        'success' => true,
-        'data'    => $students->items(), // The actual student records
-        'meta'    => [
-            'current_page' => $students->currentPage(),
-            'last_page'    => $students->lastPage(),
-            'total'        => $students->total(),
-        ]
-    ]);
-}
-
 
 
 
@@ -480,83 +566,234 @@ public function getStudentsByInstructor(Request $request)
 
 ///index test 04-04
 public function adminIndex(Request $request)
-{
-    // 1. Start query with all necessary relationships
-    $query = Student::with(['user', 'package', 'instructor.user']);
+    {
+        // 1. Start query, using Eloquent Eager Loading for location
+        $query = Student::with(['user', 'package', 'instructor.user', 'location']);
 
-    // 2. Filter by User Status (only active or blocked - exclude pending by default)
-    if ($request->filled('status')) {
-        $status = strtolower($request->status);
-        $query->whereHas('user', function($q) use ($status) {
-            $q->where('status', $status);
+        // 2. COMBINED User Filters: Single whereHas for maximum performance
+        $query->whereHas('user', function ($q) use ($request) {
+            
+            // --- A. Status Filtering ---
+            if ($request->filled('status')) {
+                $status = strtolower($request->status);
+                if ($status === 'pending') {
+                    $q->whereIn('status', ['pending', 'awaiting_payment']);
+                } else {
+                    $q->where('status', $status);
+                }
+            } else {
+                // FIXED: Now defaults to showing active, blocked, AND awaiting_payment
+                $q->whereIn('status', ['active', 'blocked', 'awaiting_payment']);
+            }
+
+            // --- B. Search Filtering (Name or Email) ---
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $q->where(function ($subQ) use ($search) {
+                    $subQ->where('name', 'like', "%{$search}%")
+                         ->orWhere('email', 'like', "%{$search}%");
+                });
+            }
         });
-    } else {
-        // Default: exclude pending students, only show active and blocked
-        $query->whereHas('user', function($q) {
-            $q->whereIn('status', ['active', 'blocked']);
-        });
-    }
 
-    // 3. Search by Name or Email
-    if ($request->filled('search')) {
-        $search = $request->search;
-        $query->whereHas('user', function($q) use ($search) {
-            $q->where('name', 'like', "%{$search}%")
-              ->orWhere('email', 'like', "%{$search}%");
-        });
-    }
-
-    // 4. Filter by Location ID (Numeric ID from React)
-    if ($request->filled('location') && $request->location !== 'All') {
-        $query->where('province', $request->location);
-    }
-
-    // 5. Paginate (Set to 10 for a full-looking table)
-    $students = $query->latest('students.created_at')->paginate(10);
-
-    // 6. Attach the Location Name text and calculate payment info
-    $students->getCollection()->transform(function ($student) {
-        $loc = \App\Models\Location::find($student->province);
-        $student->province_name_text = $loc ? $loc->province_name : 'N/A';
-        
-        // Calculate payment info from enrolment
-        $enrolment = \App\Models\Enrolment::where('student_id', $student->id)
-            ->whereIn('status', ['active', 'paid'])
-            ->latest()
-            ->first();
-        
-        if ($enrolment) {
-            $totalToPay = $enrolment->total_amount;
-            $balanceDue = $enrolment->balance_due;
-            $student->balanceCAD = number_format($balanceDue, 2);
-            $student->paymentStatus = $balanceDue <= 0 ? 'Paid' : 'Due';
-            $student->totalPaid = number_format($totalToPay - $balanceDue, 2);
-            $student->totalPackageAmount = number_format($totalToPay, 2);
-        } else {
-            $student->balanceCAD = '0.00';
-            $student->paymentStatus = 'Due';
-            $student->totalPaid = '0.00';
-            $student->totalPackageAmount = $student->package ? number_format($student->package->amount, 2) : '0.00';
+        // 3. Filter by Location ID
+        if ($request->filled('location') && $request->location !== 'All') {
+            $query->where('province', $request->location);
         }
+
+        // 4. Paginate
+        $perPage = $request->get('per_page', 10);
+        $students = $query->latest()->paginate($perPage);
+
+        // 5. Append location name AND calculate payment info
+        $students->getCollection()->transform(function ($student) {
+            
+            $student->province_name_text = $student->location ? $student->location->province_name : 'N/A';
+            
+            $enrolment = \App\Models\Enrolment::where('student_id', $student->id)
+                ->whereIn('status', ['active', 'paid', 'pending_payment'])
+                ->latest()
+                ->first();
+            
+            if ($enrolment) {
+                $totalToPay = $enrolment->total_amount;
+                $balanceDue = $enrolment->balance_due;
+                $student->balanceCAD = number_format($balanceDue, 2);
+                
+                if ($balanceDue <= 0) {
+                    $student->paymentStatus = 'Paid';
+                } elseif ($balanceDue < $totalToPay) {
+                    $student->paymentStatus = 'Deposit Paid';
+                } else {
+                    $student->paymentStatus = 'Awaiting Payment';
+                }
+                
+                $student->totalPaid = number_format($totalToPay - $balanceDue, 2);
+                $student->totalPackageAmount = number_format($totalToPay, 2);
+            } else {
+                $student->balanceCAD = '0.00';
+                $student->paymentStatus = 'Due';
+                $student->totalPaid = '0.00';
+                $student->totalPackageAmount = $student->package ? number_format($student->package->amount, 2) : '0.00';
+            }
+            
+            return $student;
+        });
+
+        return response()->json([
+            'success' => true,
+            'data'    => $students->items(), 
+            'meta'    => [
+                'current_page' => $students->currentPage(),
+                'last_page'    => $students->lastPage(),
+                'total'        => $students->total(),
+                'per_page'     => $students->perPage(),
+            ]
+        ]);
+    }
+
+
+
+// public function adminShow($id)
+// {
+//     try {
+//         // 1. Eager load everything
+//         $student = Student::with([
+//             'user', 
+//             'package', 
+//             'instructor.user',
+//             'payments',
+//             'assignments.attendance', 
+//             'assignments.evaluation'
+//         ])->findOrFail($id);
+
+//         // 2. Get the active enrolment
+//         $enrolment = Enrolment::where('student_id', $student->id)
+//             ->whereIn('status', ['active', 'paid'])
+//             ->latest()
+//             ->first();
+
+//         // 3. Get location separately
+//         $location = null;
+//         if ($student->province) {
+//             $location = Location::find($student->province);
+//         }
+
+//         // 4. Financial Logic - Use enrolment data
+//         $totalToPay = $enrolment ? $enrolment->total_amount : ($student->package->amount ?? 0);
+//         $balanceDue = $enrolment ? $enrolment->balance_due : $totalToPay;
+//         $totalPaid = $totalToPay - $balanceDue;
+
+//         // 5. Get instructor details
+//         $instructorPhone = null;
+//         $instructorEmail = null;
+//         if ($student->instructor && $student->instructor->user) {
+//             $instructorPhone = $student->instructor->user->phone;
+//             $instructorEmail = $student->instructor->user->email;
+//         }
+
+//         // 6. Map attendance
+//         $attendanceData = $student->assignments->map(function($assign) {
+//             return [
+//                 'date'    => $assign->date,
+//                 'session' => ($assign->start_time ?? '') . ' - ' . ($assign->end_time ?? ''),
+//                 'status'  => $assign->attendance->status ?? 'Not Marked',
+//             ];
+//         })->values();
+
+//         // 7. Map evaluation data
+//         $evaluationData = $student->assignments
+//     ->filter(function($assign) {
+//         return $assign->evaluation !== null;
+//     })
+//     ->map(function($assign) {
+//         // Get the evaluation date from the evaluation's created_at
+//         $evaluationDate = $assign->evaluation->created_at 
+//             ? $assign->evaluation->created_at->format('M d, Y') 
+//             : ($assign->date ? date('M d, Y', strtotime($assign->date)) : null);
         
-        return $student;
-    });
+//         // Get remark date (same as evaluation date if not separate)
+//         $remarkDate = $assign->evaluation->created_at 
+//             ? $assign->evaluation->created_at->format('M d, Y') 
+//             : null;
+        
+//         // Get reply date if student_reply exists and was updated
+//         $replyDate = $assign->evaluation->student_reply && $assign->evaluation->updated_at 
+//             ? $assign->evaluation->updated_at->format('M d, Y') 
+//             : null;
 
-    return response()->json([
-        'success' => true,
-        'data'    => $students->items(),
-        'meta'    => [
-            'current_page' => $students->currentPage(),
-            'last_page'    => $students->lastPage(),
-            'total'        => $students->total(),
-            'per_page'     => $students->perPage(),
-        ]
-    ]);
-}
-
-
-
-
+//         return [
+//             'id'             => $assign->evaluation->id ?? null,
+//             'category'       => $assign->evaluation->test_type ?? 'Driving Evaluation',
+//             'test_type'      => $assign->evaluation->test_type ?? 'Practical Test',
+//             'score'          => $assign->evaluation->score ?? 0,
+//             'note'           => $assign->evaluation->instructor_remarks ?? 'No remarks provided',
+//             'student_reply'  => $assign->evaluation->student_reply ?? null,
+//             'date'           => $evaluationDate ?? 'Date not recorded',
+//             'remark_date'    => $remarkDate,
+//             'reply_date'     => $replyDate,
+//         ];
+//     })->values();
+//         return response()->json([
+//             'success' => true,
+//             'data' => [
+//                 // Basic Info
+//                 'id'              => $student->id,
+//                 'name'            => $student->user->name ?? 'N/A',
+//                 'email'           => $student->user->email ?? 'N/A',
+//                 'phone'           => $student->user->phone ?? 'N/A',
+//                 'status'          => $student->user->status,
+//                 'isActive'        => $student->user->status === 'active',
+//                 'profile_picture' => $student->user->profile_picture,
+//                 'permit_number'   => $student->permit_number ?? 'N/A',
+                
+//                 // Package & Location
+//                 'packageName'      => $student->package->package_name ?? 'Not Assigned',
+//                 'packageAmount'    => $student->package->amount ?? 0,
+//                 'location'         => $location ? $location->province_name : ($student->province ?? 'N/A'),
+//                 'locationName'     => $location ? $location->province_name : ($student->province ?? 'N/A'),
+//                 'province'         => $student->province,
+//                 'licenseClass'     => $student->license_class ?? 'Class 5',
+                
+//                 // Instructor
+//                 'instructor'       => $student->instructor->user->name ?? 'Unassigned',
+//                 'instructorName'   => $student->instructor->user->name ?? 'Unassigned',
+//                 'instructorPhone'  => $instructorPhone,
+//                 'instructorEmail'  => $instructorEmail,
+                
+//                 // Payments
+//                 'totalPackageAmount' => number_format($totalToPay, 2),
+//                 'totalPaid'          => number_format($totalPaid, 2),
+//                 'balanceCAD'         => number_format($balanceDue, 2),
+//                 'paymentStatus'      => $balanceDue <= 0 ? 'Paid' : 'Balance Due',
+                
+//                 // Course Progress
+//                 'hoursLogged' => $student->assignments->where('attendance.status', 'present')->count(),
+//                 'totalHours'  => $student->package->hours ?? 0,
+                
+//                 // Lists
+//                 'attendance'   => $attendanceData,
+//                 'evaluations'  => $evaluationData,
+//                 'upcomingSchedules' => [],
+//                 'payments' => $student->payments->map(fn($p) => [
+//                     'date'           => $p->created_at->format('M d, Y'),
+//                     'amount'         => $p->amount_total,
+//                     'method'         => $p->payment_method ?? 'N/A',
+//                     'transaction_id' => $p->transaction_id ?? null,
+//                     'status'         => $p->status
+//                 ])
+//             ]
+//         ]);
+//     } catch (\Exception $e) {
+//         return response()->json([
+//             'success' => false, 
+//             'error' => $e->getMessage(),
+//             'file' => $e->getFile(),
+//             'line' => $e->getLine(),
+//             'trace' => $e->getTraceAsString()
+//         ], 500);
+//     }
+// }
 public function adminShow($id)
 {
     try {
@@ -570,9 +807,9 @@ public function adminShow($id)
             'assignments.evaluation'
         ])->findOrFail($id);
 
-        // 2. Get the active enrolment
+        // 2. Get the active enrolment - FIXED: Added 'pending_payment'
         $enrolment = Enrolment::where('student_id', $student->id)
-            ->whereIn('status', ['active', 'paid'])
+            ->whereIn('status', ['active', 'paid', 'pending_payment'])
             ->latest()
             ->first();
 
@@ -582,8 +819,16 @@ public function adminShow($id)
             $location = Location::find($student->province);
         }
 
-        // 4. Financial Logic - Use enrolment data
-        $totalToPay = $enrolment ? $enrolment->total_amount : ($student->package->amount ?? 0);
+        // 4. Financial Logic - FIXED: Calculate tax if no enrolment exists yet
+        if ($enrolment) {
+            $totalToPay = $enrolment->total_amount;
+        } else {
+            $baseAmount = $student->package->amount ?? 0;
+            $taxRate = $location ? $location->tax_rate : 0;
+            $taxAmount = ($baseAmount * $taxRate) / 100;
+            $totalToPay = round($baseAmount + $taxAmount, 2);
+        }
+        
         $balanceDue = $enrolment ? $enrolment->balance_due : $totalToPay;
         $totalPaid = $totalToPay - $balanceDue;
 
@@ -606,37 +851,35 @@ public function adminShow($id)
 
         // 7. Map evaluation data
         $evaluationData = $student->assignments
-    ->filter(function($assign) {
-        return $assign->evaluation !== null;
-    })
-    ->map(function($assign) {
-        // Get the evaluation date from the evaluation's created_at
-        $evaluationDate = $assign->evaluation->created_at 
-            ? $assign->evaluation->created_at->format('M d, Y') 
-            : ($assign->date ? date('M d, Y', strtotime($assign->date)) : null);
-        
-        // Get remark date (same as evaluation date if not separate)
-        $remarkDate = $assign->evaluation->created_at 
-            ? $assign->evaluation->created_at->format('M d, Y') 
-            : null;
-        
-        // Get reply date if student_reply exists and was updated
-        $replyDate = $assign->evaluation->student_reply && $assign->evaluation->updated_at 
-            ? $assign->evaluation->updated_at->format('M d, Y') 
-            : null;
+        ->filter(function($assign) {
+            return $assign->evaluation !== null;
+        })
+        ->map(function($assign) {
+            $evaluationDate = $assign->evaluation->created_at 
+                ? $assign->evaluation->created_at->format('M d, Y') 
+                : ($assign->date ? date('M d, Y', strtotime($assign->date)) : null);
+            
+            $remarkDate = $assign->evaluation->created_at 
+                ? $assign->evaluation->created_at->format('M d, Y') 
+                : null;
+            
+            $replyDate = $assign->evaluation->student_reply && $assign->evaluation->updated_at 
+                ? $assign->evaluation->updated_at->format('M d, Y') 
+                : null;
 
-        return [
-            'id'             => $assign->evaluation->id ?? null,
-            'category'       => $assign->evaluation->test_type ?? 'Driving Evaluation',
-            'test_type'      => $assign->evaluation->test_type ?? 'Practical Test',
-            'score'          => $assign->evaluation->score ?? 0,
-            'note'           => $assign->evaluation->instructor_remarks ?? 'No remarks provided',
-            'student_reply'  => $assign->evaluation->student_reply ?? null,
-            'date'           => $evaluationDate ?? 'Date not recorded',
-            'remark_date'    => $remarkDate,
-            'reply_date'     => $replyDate,
-        ];
-    })->values();
+            return [
+                'id'             => $assign->evaluation->id ?? null,
+                'category'       => $assign->evaluation->test_type ?? 'Driving Evaluation',
+                'test_type'      => $assign->evaluation->test_type ?? 'Practical Test',
+                'score'          => $assign->evaluation->score ?? 0,
+                'note'           => $assign->evaluation->instructor_remarks ?? 'No remarks provided',
+                'student_reply'  => $assign->evaluation->student_reply ?? null,
+                'date'           => $evaluationDate ?? 'Date not recorded',
+                'remark_date'    => $remarkDate,
+                'reply_date'     => $replyDate,
+            ];
+        })->values();
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -690,10 +933,7 @@ public function adminShow($id)
     } catch (\Exception $e) {
         return response()->json([
             'success' => false, 
-            'error' => $e->getMessage(),
-            'file' => $e->getFile(),
-            'line' => $e->getLine(),
-            'trace' => $e->getTraceAsString()
+            'error' => $e->getMessage()
         ], 500);
     }
 }
@@ -952,4 +1192,390 @@ private function updatePackageRequestNotification($requestId, $newStatus)
     }
 }
 
+public function rejectStudent(\Illuminate\Http\Request $request, $id)
+    {
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'rejection_reason' => 'required|string|max:1000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        try {
+            return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $id) {
+                
+                $student = \App\Models\Student::with('user')->findOrFail($id);
+                $user = $student->user;
+
+                // 1. Save the rejection reason BEFORE soft-deleting
+                $student->update([
+                    'rejection_reason' => $request->rejection_reason
+                ]);
+
+                // 2. Send the email (We still route it manually just to be safe during the deletion process)
+                \Illuminate\Support\Facades\Notification::route('mail', $user->email)
+                    ->notify(new \App\Notifications\StudentApplicationRejectedNotification($request->rejection_reason, $user->name));
+
+                // 3. SOFT DELETE
+                // Because we added the SoftDeletes trait, this hides the rows but keeps the data!
+                $student->delete(); 
+                if ($user) {
+                    $user->delete();
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Application rejected. The history is saved, the email was sent, and the student can re-apply.'
+                ]);
+            });
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Failed to reject application', 
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Instantly check if an email or phone is already registered
+     */
+    public function checkUniqueField(\Illuminate\Http\Request $request)
+    {
+        $request->validate([
+            'field' => 'required|in:email,phone',
+            'value' => 'required|string'
+        ]);
+
+        // Check if the value exists in the database and is NOT soft-deleted
+        $exists = \App\Models\User::where($request->field, $request->value)
+                    ->whereNull('deleted_at')
+                    ->exists();
+
+        return response()->json([
+            'is_unique' => !$exists
+        ]);
+    }
+
+
+
+
+
+
+    /**
+     * Step 1: Approve Application & Send Deposit Invoice
+     */
+    // public function approveApplication(Request $request, $id)
+    // {
+    //     $validator = Validator::make($request->all(), [
+    //         'package_id' => 'required|exists:packages,id',
+    //     ]);
+
+    //     if ($validator->fails()) {
+    //         return response()->json(['errors' => $validator->errors()], 422);
+    //     }
+
+    //     return DB::transaction(function () use ($request, $id) {
+    //         $student = Student::with('user')->findOrFail($id);
+    //         $package = Package::findOrFail($request->package_id);
+            
+    //         $location = Location::find($student->province);
+    //         if (!$location) {
+    //             return response()->json(['error' => 'No tax location found for province ID'], 422);
+    //         }
+
+    //         // Calculate Financials
+    //         $taxAmount = ($package->amount * $location->tax_rate) / 100;
+    //         $totalWithTax = round($package->amount + $taxAmount, 2);
+    //         $depositRequired = round($totalWithTax / 2, 2); // 50% deposit
+
+    //         // 1. Update Student
+    //         $student->update([
+    //             'package_id' => $package->id,
+    //         ]);
+
+    //         // 2. Update User Status
+    //         $student->user->update(['status' => 'awaiting_payment']);
+
+    //         // 3. Create Pending Enrolment
+    //         $enrolment = Enrolment::create([
+    //             'student_id'          => $student->id,
+    //             'package_id'          => $package->id,
+    //             'location_id'         => $location->id,
+    //             'total_amount'        => $totalWithTax,
+    //             'balance_due'         => $totalWithTax, 
+    //             'progress_percentage' => 0,
+    //             'status'              => 'pending_payment'
+    //         ]);
+
+    //         // 4. Send Deposit Invoice Notification
+    //         $student->user->notify(new \App\Notifications\SendDepositInvoiceNotification(
+    //             $student->user->name,
+    //             $package->package_name,
+    //             $totalWithTax,
+    //             $depositRequired
+    //         ));
+
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'Application approved. Deposit invoice sent to student.',
+    //             'data' => [
+    //                 'total_amount' => $totalWithTax,
+    //                 'deposit_due' => $depositRequired
+    //             ]
+    //         ]);
+    //     });
+    // }
+
+public function approveApplication(Request $request, $id)
+{
+    $validator = Validator::make($request->all(), [
+        'package_id' => 'required|exists:packages,id',
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json(['errors' => $validator->errors()], 422);
+    }
+
+    return DB::transaction(function () use ($request, $id) {
+        $student = Student::with('user')->findOrFail($id);
+        $package = Package::findOrFail($request->package_id);
+        
+        $location = Location::find($student->province);
+        if (!$location) {
+            return response()->json(['error' => 'No tax location found for province ID'], 422);
+        }
+
+        // Calculate Financials
+        $taxAmount = ($package->amount * $location->tax_rate) / 100;
+        $totalWithTax = round($package->amount + $taxAmount, 2);
+        $depositRequired = round($totalWithTax / 2, 2); // 50% deposit
+
+        // 1. Update Student
+        $student->update([
+            'package_id' => $package->id,
+        ]);
+
+        // 2. Update User Status
+        $student->user->update(['status' => 'awaiting_payment']);
+
+        // 3. Create Pending Enrolment
+        $enrolment = Enrolment::create([
+            'student_id'          => $student->id,
+            'package_id'          => $package->id,
+            'location_id'         => $location->id,
+            'total_amount'        => $totalWithTax,
+            'balance_due'         => $totalWithTax, 
+            'progress_percentage' => 0,
+            'status'              => 'pending_payment'
+        ]);
+
+        // Build student address for invoice
+        $studentAddress = $student->street_address ?? '';
+        if ($student->city) $studentAddress .= ', ' . $student->city;
+        if ($student->province) $studentAddress .= ', ' . $student->province;
+
+        // Get company settings
+        $company = \App\Models\CompanySetting::first();
+        
+        // Transform to invoice format
+        $invoice = $this->transformToInvoice($enrolment, $package, $student, $company, $totalWithTax);
+        
+        // Generate invoice HTML using the blade template
+        $invoiceHtml = \Illuminate\Support\Facades\View::make('invoice', [
+            'invoice' => $invoice,
+            'company' => $company ? $company->toArray() : [],
+        ])->render();
+        
+        // Prepare data for email template
+        $emailData = [
+            'student_name' => $student->user->name,
+            'package_name' => $package->package_name,
+            'company_name' => $company->company_name ?? 'Terra Nova Driving School',
+            'company_email' => $company->company_email ?? 'info@terranovadriverstraining.ca',
+            'company_phone' => $company->company_phone ?? '(555) 123-4567',
+            'company_address' => $company->company_address ?? '',
+            'invoice_number' => 'INV-' . str_pad($enrolment->id, 5, '0', STR_PAD_LEFT),
+            'invoice_date' => $enrolment->created_at->format('M d, Y'),
+            'total_amount' => number_format($totalWithTax, 2),
+            'deposit_amount' => number_format($depositRequired, 2),
+            'invoice_link' => url('/invoices/' . $enrolment->id),
+            'invoice_html' => $invoiceHtml, // Add the full invoice HTML
+        ];
+
+        // Send the invoice email with full HTML
+        \Illuminate\Support\Facades\Mail::to($student->user->email)
+            ->send(new \App\Mail\InvoiceEmail($emailData, $invoiceHtml));
+
+        // Also send database notification
+        // $student->user->notify(new \App\Notifications\SendDepositInvoiceNotification(
+        //     $student->user->name,
+        //     $package->package_name,
+        //     $totalWithTax,
+        //     $depositRequired,
+        //     $enrolment->id,
+        //     $student->user->email,
+        //     $studentAddress
+        // ));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Application approved. Invoice sent to student.',
+            'data' => [
+                'enrolment_id' => $enrolment->id,
+                'total_amount' => $totalWithTax,
+                'deposit_due' => $depositRequired
+            ]
+        ]);
+    });
+}
+
+// Add this helper method to your controller
+private function transformToInvoice($enrolment, $package, $student, $company, $totalAmount)
+{
+    $balanceDue = $totalAmount;
+    $amountPaid = 0;
+    
+    return [
+        'id' => $enrolment->id,
+        'transaction_id' => 'INV-' . str_pad($enrolment->id, 5, '0', STR_PAD_LEFT),
+        'amount' => $totalAmount,
+        'balance_due' => $balanceDue,
+        'amount_paid' => $amountPaid,
+        'status' => 'pending',
+        'status_text' => 'Pending Deposit',
+        'invoice_type' => 'INVOICE',
+        'date' => $enrolment->created_at->format('Y-m-d'),
+        'formatted_date' => $enrolment->created_at->format('M d, Y'),
+        'student' => [
+            'id' => $student->id,
+            'name' => $student->user->name,
+            'email' => $student->user->email,
+            'address' => $student->street_address ?? '',
+        ],
+        'course' => $package->package_name,
+    ];
+}
+    /**
+     * Step 2: Assign Instructor & Activate Student
+     */
+   public function assignInstructorAndActivate(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'instructor_id' => 'required|exists:instructors,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        return DB::transaction(function () use ($request, $id) {
+            $student = Student::with(['user', 'package'])->findOrFail($id);
+            $instructor = Instructor::with('user')->findOrFail($request->instructor_id);
+
+            // 1. Find Pending or Active Enrolment
+            $enrolment = Enrolment::where('student_id', $student->id)
+                ->whereIn('status', ['pending_payment', 'active'])
+                ->latest()
+                ->first();
+
+            if (!$enrolment) {
+                return response()->json(['error' => 'No active or pending enrolment found for this student.'], 422);
+            }
+
+            // --- NEW: STRICT 50% PAYMENT CHECK ---
+            $totalAmount = $enrolment->total_amount;
+            $balanceDue = $enrolment->balance_due;
+            $amountPaid = $totalAmount - $balanceDue;
+            $requiredDeposit = round($totalAmount / 2, 2); // 50% of total
+
+            if ($amountPaid < $requiredDeposit) {
+                return response()->json([
+                    'error' => "Cannot activate student. A minimum 50% deposit (CAD $" . number_format($requiredDeposit, 2) . ") must be recorded first."
+                ], 422);
+            }
+            // -------------------------------------
+
+            // 2. Update Enrolment Status
+            $enrolment->update(['status' => 'active']);
+
+            // 3. Update Student and User
+            $student->update([
+                'instructor_id' => $instructor->id
+            ]);
+            $student->user->update(['status' => 'active']);
+
+            // 4. QUEUED EMAILS
+            \App\Services\NotificationService::send('student_activation', $student->user->email, [
+                'student_name' => $student->user->name,
+                'package_name' => $student->package->package_name ?? 'Assigned Package',
+                'balance_due'  => $enrolment->balance_due
+            ]);
+
+            \App\Services\NotificationService::send('instructor_student_assigned', $instructor->user->email, [
+                'instructor_name' => $instructor->user->name,
+                'student_name'    => $student->user->name,
+                'package_name'    => $student->package->package_name ?? 'Assigned Package'
+            ]);
+
+            // 5. DATABASE NOTIFICATIONS
+            $instructor->user->notify(new \App\Notifications\StudentAssignedNotification([
+                'student_name' => $student->user->name,
+                'package_name' => $student->package->package_name ?? 'Assigned Package',
+                'student_id'   => $student->id
+            ]));
+
+            $student->user->notify(new \App\Notifications\WelcomeStudentNotification([
+                'instructor_name' => $instructor->user->name,
+                'package_name'    => $student->package->package_name ?? 'Your Package'
+            ]));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Student fully activated and assigned to ' . $instructor->user->name . '. Emails sent.',
+            ]);
+        });
+    }
+
+
+
+    /**
+     * Send Payment Reminder Notification to Student
+     */
+    public function sendPaymentReminder($id)
+    {
+        try {
+            $student = \App\Models\Student::with(['user', 'package'])->findOrFail($id);
+            
+            // Get the active enrolment to find the exact balance
+            $enrolment = \App\Models\Enrolment::where('student_id', $id)
+                ->whereIn('status', ['active', 'pending_payment'])
+                ->latest()
+                ->first();
+
+            $balanceDue = $enrolment ? $enrolment->balance_due : ($student->package->amount ?? 0);
+
+            if ($balanceDue <= 0) {
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'This student has no pending balance.'
+                ], 400);
+            }
+
+            // Trigger the Notification (Database ONLY, no emails)
+            $student->user->notify(new \App\Notifications\PaymentReminderNotification($balanceDue));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment reminder sent to student dashboard successfully!'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send reminder: ' . $e->getMessage()
+            ], 500);
+        }
+    }
   }

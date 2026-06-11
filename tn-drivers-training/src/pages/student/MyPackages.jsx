@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { 
   Award, Clock, CheckCircle, CreditCard, Calendar,
@@ -14,6 +15,7 @@ import {
 const API_URL = "http://localhost:8000/api";
 
 const MyPackages = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activePackage, setActivePackage] = useState(null);
@@ -284,11 +286,13 @@ const MyPackages = () => {
             </div>
           </div>
 
-          <Link to="/student" className="block w-full">
-            <button className="w-full px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-sm font-bold transition-all shadow-md">
-              View Schedule
-            </button>
-          </Link>
+            <button 
+  onClick={() => navigate('/student', { state: { scrollToSchedule: true } })}
+  className="w-full px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-sm font-bold transition-all shadow-md"
+>
+  View Schedule
+</button>
+         
         </div>
       </div>
     );

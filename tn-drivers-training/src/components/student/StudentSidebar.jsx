@@ -60,6 +60,7 @@ const StudentSidebar = ({ isOpen, setIsOpen }) => {
     { name: "My Profile", icon: "👤", path: "/student/profile", section: "Main" },
     { name: "Tests & Evaluations", icon: "📋", path: "/student/test-evaluation", section: "Main" },
     { name: "My Packages", icon: "📦", path: "/student/mypackage", section: "Learning" },
+    { name: "My Payments", icon: "💰", path: "/student/payments", section: "Learning"},
     { name: "Notifications", icon: "🔔", path: "/student/notifications", section: "System" },
   ];
 

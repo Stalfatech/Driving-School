@@ -16,7 +16,12 @@ class ScheduleAssignment extends Model
         'date',
         'student_location',
         'start_time',
-        'end_time'
+        'end_time',
+         'is_test',     
+    'test_type',        
+    'test_attempt',     
+    'test_result',       
+    'test_score' 
     ];
 
     /**
@@ -62,4 +67,14 @@ class ScheduleAssignment extends Model
     {
         return $this->hasOne(TestEvaluation::class, 'assignment_id');
     }
+    // Add this method to the model
+public function getTestAttemptDisplayAttribute()
+{
+    if (!$this->test_attempt) return 'N/A';
+    $suffix = 'th';
+    if ($this->test_attempt == 1) $suffix = 'st';
+    if ($this->test_attempt == 2) $suffix = 'nd';
+    if ($this->test_attempt == 3) $suffix = 'rd';
+    return $this->test_attempt . $suffix . ' Attempt';
+}
 }

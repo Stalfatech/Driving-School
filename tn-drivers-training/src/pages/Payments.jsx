@@ -337,6 +337,11 @@ const Payments = () => {
     setCurrentPage(1);
   };
 
+  const clearSearch = () => {
+    setSearchTerm('');
+    setCurrentPage(1);
+  };
+
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
   };
@@ -481,7 +486,7 @@ const Payments = () => {
 
           {/* Filters & Search */}
           <div className="flex flex-col w-full lg:flex-row items-stretch lg:items-center gap-3 sm:gap-4 mb-6">
-            {/* Search Bar */}
+            {/* Search Bar with Clear Button */}
             <div className="relative w-full lg:max-w-md">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
               <input
@@ -489,8 +494,18 @@ const Payments = () => {
                 placeholder="Search by Transaction ID or Email..."
                 value={searchTerm}
                 onChange={handleSearch}
-                className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm dark:text-slate-300 outline-none focus:ring-2 focus:ring-teal-500/20 transition-all shadow-sm"
+                className="w-full pl-11 pr-10 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm dark:text-slate-300 outline-none focus:ring-2 focus:ring-teal-500/20 transition-all shadow-sm"
               />
+              {/* Clear Button (X) - Only shows when there's text */}
+              {searchTerm && (
+                <button
+                  onClick={clearSearch}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-md text-slate-500 transition-colors"
+                  title="Clear search"
+                >
+                  <X size={16} />
+                </button>
+              )}
             </div>
 
             {/* Filter Buttons */}
@@ -648,8 +663,6 @@ const Payments = () => {
               />
             </div>
           </div>
-
-          
 
           {/* Template Editor Section */}
           <div className="mt-8">

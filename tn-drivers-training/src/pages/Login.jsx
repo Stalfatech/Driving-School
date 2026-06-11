@@ -1,7 +1,9 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Loader2, CheckCircle, AlertCircle, X } from 'lucide-react';
+import { Loader2, CheckCircle, AlertCircle, X, Eye, EyeOff, Home } from 'lucide-react';
+import PrivacyPolicy from './PrivacyPolicy'; 
 
 const API_BASE = "http://localhost:8000/api";
 
@@ -14,14 +16,17 @@ const Login = () => {
     password: ''
   });
   
-  const [rememberMe, setRememberMe] = useState(false);  // <-- NEW STATE
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
-  // Forgot password modal
+  // Modals
   const [showForgotModal, setShowForgotModal] = useState(false);
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false); 
+  
+  // Forgot password states
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotSuccess, setForgotSuccess] = useState(false);
@@ -43,7 +48,7 @@ const Login = () => {
       const response = await axios.post(`${API_BASE}/login`, {
         email: formData.email,
         password: formData.password,
-        remember: rememberMe   // <-- SEND REMEMBER FLAG
+        remember: rememberMe
       });
       
       if (response.data.success) {
@@ -66,12 +71,16 @@ const Login = () => {
       }
     } catch (err) {
       console.error('Login error:', err);
-      if (err.response?.status === 401) {
+      const status = err.response?.status;
+      const message = err.response?.data?.message;
+
+      // Ensure 403 or specific blocked messages are caught first
+      if (status === 403 || (message && message.includes('contact administration'))) {
+        setError(message || 'Your account is not active. Please contact administration.');
+      } else if (status === 401 || message === 'Invalid credentials.') {
         setError('Invalid email or password');
-      } else if (err.response?.status === 403) {
-        setError(err.response.data.message || 'Your account is not active');
       } else {
-        setError('Network error. Please try again.');
+        setError(message || 'Network error. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -124,7 +133,6 @@ const Login = () => {
         
         {/* Left Side: Branding & Visuals */}
         <div className="relative hidden lg:flex lg:w-1/2 dynamic-waves flex-col justify-between p-12 overflow-hidden">
-          {/* Background Decoration */}
           <div className="absolute inset-0 opacity-30">
             <svg className="h-full w-full" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
               <path d="M0,400 C150,300 350,500 500,400 C650,300 800,400 800,400 L800,800 L0,800 Z" fill="rgba(236, 91, 19, 0.1)"></path>
@@ -132,15 +140,11 @@ const Login = () => {
             </svg>
           </div>
 
-          {/* Logo */}
           <div className="relative z-10 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#ec5b13] text-white">
-              <span className="material-symbols-outlined text-3xl">deployed_code</span>
-            </div>
+            <img src="/logo.webp" alt="TerraNova Logo" className="h-12 w-auto object-contain drop-shadow-md" />
             <h1 className="text-3xl font-black tracking-tight text-white">TerraNova</h1>
           </div>
 
-          {/* Heading Text */}
           <div className="relative z-10 max-w-lg">
             <h2 className="text-5xl font-black leading-tight text-white mb-6">
               Drivers Training <br/>
@@ -151,7 +155,6 @@ const Login = () => {
             </p>
           </div>
 
-          {/* Stats */}
           <div className="relative z-10 flex gap-8">
             <div className="flex flex-col">
               <span className="text-2xl font-black text-white">12k+</span>
@@ -169,24 +172,28 @@ const Login = () => {
         </div>
 
         {/* Right Side: Login Form */}
-        <div className="flex w-full lg:w-1/2 flex-col items-center justify-center p-6 sm:p-12 bg-[#f8f6f6] dark:bg-[#0a0a1a] overflow-y-auto">
-          <div className="w-full max-w-md space-y-8">
+        <div className="relative flex w-full lg:w-1/2 flex-col items-center justify-center p-6 sm:p-12 bg-[#f8f6f6] dark:bg-[#0a0a1a] overflow-y-auto">
+          
+          {/* Top Right Home Button */}
+          <button 
+            onClick={() => navigate('/')}
+            className="absolute top-6 right-6 sm:top-8 sm:right-8 flex items-center gap-2 px-4 py-2 bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-full shadow-sm backdrop-blur-sm text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-[#ec5b13] dark:hover:text-[#ec5b13] hover:border-[#ec5b13]/30 transition-all z-10"
+          >
+            <Home size={16} />
+            Home
+          </button>
+
+          <div className="w-full max-w-md space-y-8 mt-10 lg:mt-0">
             
-            {/* Mobile Branding */}
-            <div className="lg:hidden flex items-center gap-3 mb-8">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#ec5b13] text-white">
-                <span className="material-symbols-outlined">deployed_code</span>
-              </div>
-              <h1 className="text-2xl font-black tracking-tight dark:text-white">TerraNova</h1>
+            <div className="lg:hidden flex items-center justify-center mb-8">
+              <img src="/logo.webp" alt="TerraNova Logo" className="h-12 w-auto object-contain drop-shadow-sm" />
             </div>
 
-            {/* Welcome Text */}
             <div className="space-y-2">
               <h2 className="text-3xl font-black tracking-tight dark:text-white">Welcome back</h2>
               <p className="text-slate-500 dark:text-slate-400 font-medium">Please enter your details to sign in to your account.</p>
             </div>
 
-            {/* Success Message */}
             {success && (
               <div className="p-4 bg-green-500/20 border border-green-500/30 rounded-xl flex items-center gap-3">
                 <CheckCircle size={18} className="text-green-400 shrink-0" />
@@ -194,19 +201,16 @@ const Login = () => {
               </div>
             )}
 
-            {/* Error Message */}
             {error && (
-              <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-xl flex items-center gap-3">
-                <AlertCircle size={18} className="text-red-400 shrink-0" />
-                <p className="text-sm font-bold text-red-400">{error}</p>
+              <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-xl flex items-center gap-3 animate-fadeIn">
+                <AlertCircle size={18} className="text-red-500 dark:text-red-400 shrink-0" />
+                <p className="text-sm font-bold text-red-600 dark:text-red-400">{error}</p>
               </div>
             )}
 
-            {/* Gradient Outline Container */}
             <div className="gradient-outline p-8 rounded-xl shadow-2xl dark:bg-[#0f172a]/20">
               <form onSubmit={handleSubmit} className="space-y-5">
                 
-                {/* Email Field */}
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-slate-700 dark:text-slate-300" htmlFor="email">
                     Email Address
@@ -226,7 +230,6 @@ const Login = () => {
                   </div>
                 </div>
 
-                {/* Password Field */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-bold text-slate-700 dark:text-slate-300" htmlFor="password">
@@ -242,6 +245,7 @@ const Login = () => {
                   </div>
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">lock</span>
+                    
                     <input
                       id="password"
                       name="password"
@@ -250,12 +254,19 @@ const Login = () => {
                       onChange={handleChange}
                       required
                       placeholder="••••••••"
-                      className="w-full rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 pl-11 pr-12 py-3 focus:border-[#ec5b13] focus:ring-[#ec5b13] dark:text-white transition-all outline-none font-medium"
+                      className="w-full rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 pl-11 pr-12 py-3 focus:border-[#ec5b13] focus:ring-[#ec5b13] dark:text-white transition-all outline-none font-medium [&::-ms-reveal]:hidden [&::-webkit-contacts-auto-fill-button]:hidden"
                     />
+                    
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#ec5b13] transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
                   </div>
                 </div>
 
-                {/* Remember Me Checkbox */}
                 <div className="flex items-center gap-2">
                   <input
                     className="rounded border-slate-300 text-[#ec5b13] focus:ring-[#ec5b13]"
@@ -269,7 +280,6 @@ const Login = () => {
                   </label>
                 </div>
 
-                {/* Submit Button */}
                 <button
                   type="submit"
                   disabled={loading}
@@ -287,7 +297,6 @@ const Login = () => {
               </form> 
             </div>
 
-            {/* Sign Up Link */}
             <p className="text-center text-sm text-slate-500 dark:text-slate-400 font-medium">
               Don't have an account? 
               <a className="font-black text-[#ec5b13] hover:underline ml-1" href="/register">
@@ -295,17 +304,24 @@ const Login = () => {
               </a>
             </p>
 
-            {/* Footer */}
-            <footer className="mt-auto pt-8 text-xs text-slate-400 flex gap-4 justify-center font-bold">
-              <a className="hover:text-[#ec5b13] transition-colors" href="#">Privacy Policy</a>
-              <a className="hover:text-[#ec5b13] transition-colors" href="#">Terms of Service</a>
-              <span>© 2024 TerraNova Inc.</span>
+            <footer className="mt-auto pt-8 text-xs text-slate-400 flex flex-wrap gap-x-6 gap-y-2 justify-center font-bold">
+              <button 
+                onClick={() => setShowPrivacyPolicy(true)} 
+                className="hover:text-[#ec5b13] transition-colors"
+              >
+                Privacy Policy
+              </button>
+              <span>© 2026 Terra Nova Drivers Training</span>
             </footer>
           </div>
         </div>
       </div>
 
-      {/* Forgot Password Modal */}
+      <PrivacyPolicy 
+        isOpen={showPrivacyPolicy} 
+        onClose={() => setShowPrivacyPolicy(false)} 
+      />
+
       {showForgotModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fadeIn">
           <div className="relative w-full max-w-md">
@@ -405,7 +421,6 @@ const Login = () => {
         </div>
       )}
 
-      {/* Add Material Icons and Fonts */}
       <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
       <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;900&display=swap" rel="stylesheet" />
       

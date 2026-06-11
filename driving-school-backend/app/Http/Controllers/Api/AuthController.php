@@ -13,57 +13,56 @@ use Illuminate\Support\Facades\Log;
 class AuthController extends Controller
 {
 
-    public function login(Request $request)
-{
-    // 1. Validate Input (add 'remember' as optional boolean)
-    $validator = Validator::make($request->all(), [
-        'email'    => 'required|email',
-        'password' => 'required',
-        'remember' => 'boolean'  // <-- optional
-    ]);
+public function login(Request $request)
+    {
+        // 1. Validate Input (add 'remember' as optional boolean)
+        $validator = Validator::make($request->all(), [
+            'email'    => 'required|email',
+            'password' => 'required',
+            'remember' => 'boolean'  // <-- optional
+        ]);
 
-    if ($validator->fails()) {
-        return response()->json(['errors' => $validator->errors()], 422);
-    }
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
 
-    // 2. Find User
-    $user = User::where('email', $request->email)->first();
+        // 2. Find User
+        $user = User::where('email', $request->email)->first();
 
-    // 3. Check Credentials
-    if (!$user || !Hash::check($request->password, $user->password)) {
+        // 3. Check Status FIRST (This ensures blocked users see the blocked message even if they type the wrong password!)
+        if ($user && $user->status !== 'active') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your account is ' . $user->status . '. Please contact administration.'
+            ], 403);
+        }
+
+        // 4. Check Credentials SECOND
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid credentials.'
+            ], 401);
+        }
+
+        // 5. Generate Sanctum Token with expiration based on "remember"
+        $expiration = $request->boolean('remember') ? now()->addDays(30) : null;
+        $token = $user->createToken('auth_token', ['*'], $expiration)->plainTextToken;
+
         return response()->json([
-            'success' => false,
-            'message' => 'Invalid credentials.'
-        ], 401);
+            'success' => true,
+            'message' => 'Login successful',
+            'access_token' => $token,
+            'token_type'   => 'Bearer',
+            'user' => [
+                'id'              => $user->id,
+                'name'            => $user->name,
+                'email'           => $user->email,
+                'role'            => $user->role,
+                'profile_picture' => $user->profile_picture ? asset('storage/' . $user->profile_picture) : null,
+            ]
+        ]);
     }
-
-    // 4. Check Status
-    if ($user->status !== 'active') {
-        return response()->json([
-            'success' => false,
-            'message' => 'Your account is ' . $user->status . '. Please contact administration.'
-        ], 403);
-    }
-
-    // 5. Generate Sanctum Token with expiration based on "remember"
-    $expiration = $request->boolean('remember') ? now()->addDays(30) : null;
-    $token = $user->createToken('auth_token', ['*'], $expiration)->plainTextToken;
-
-    return response()->json([
-        'success' => true,
-        'message' => 'Login successful',
-        'access_token' => $token,
-        'token_type'   => 'Bearer',
-        'user' => [
-            'id'              => $user->id,
-            'name'            => $user->name,
-            'email'           => $user->email,
-            'role'            => $user->role,
-            'profile_picture' => $user->profile_picture ? asset('storage/' . $user->profile_picture) : null,
-        ]
-    ]);
-}
-
     public function logout(Request $request)
     {
         // Revoke the token that was used to authenticate the current request

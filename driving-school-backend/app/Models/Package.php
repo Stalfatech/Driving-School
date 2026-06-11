@@ -12,6 +12,7 @@ class Package extends Model
 
     protected $fillable = [
         'package_name',
+        'tier',
         'license_class',
         'amount',
         'hours',

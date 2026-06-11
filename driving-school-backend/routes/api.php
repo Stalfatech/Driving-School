@@ -20,6 +20,11 @@ use App\Http\Controllers\Api\StudentDashboardController;
 use App\Http\Controllers\Api\Student\TestEvaluationController;
 use App\Http\Controllers\Api\StudentPackageController;
 use App\Http\Controllers\Api\StudentProfileController;
+use App\Http\Controllers\Api\RescheduleController;
+use App\Http\Controllers\Api\InvoiceController;
+use App\Http\Controllers\Api\CompanySettingController;
+
+
 
 
 
@@ -34,6 +39,7 @@ Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 Route::get('/packages', [PackageController::class, 'index']);
 Route::get('/locations', [LocationController::class, 'index']);
+Route::post('/check-unique', [StudentController::class, 'checkUniqueField']);
  //for testing purpose 
 
 //     Route::get('/test-notification', function () {
@@ -84,6 +90,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
     Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
 
+
+
+    Route::get('/instructor-availability', [SchedulingController::class, 'getInstructorAvailability']);
+
     /*
     |--------------------------------------------------------------------------
     | Admin-Only Routes
@@ -126,12 +136,15 @@ Route::middleware('auth:sanctum')->group(function () {
              Route::get('/students/onboarding-data', [StudentController::class, 'getOnboardingData']);
              Route::get('/students', [StudentController::class, 'index']);
              Route::get('/students/{id}', [StudentController::class, 'show']);
-             Route::post('/students/{id}/activate', [StudentController::class, 'activateStudent']);
+            //  Route::post('/students/{id}/activate', [StudentController::class, 'activateStudent']);
+            Route::post('/students/{id}/approve', [StudentController::class, 'approveApplication']);
+            Route::post('/students/{id}/assign-instructor', [StudentController::class, 'assignInstructorAndActivate']);
              Route::delete('/students/{id}', [StudentController::class, 'destroy']);
              //reassign student
              // Add this line with your other student routes (around line 100-110 in your routes file)
              Route::put('/students/{id}', [StudentController::class, 'update']);
              Route::post('/students/{id}/reassign', [StudentController::class, 'reassignInstructor']);
+             Route::post('/students/{id}/reject', [StudentController::class, 'rejectStudent']);
              
 
              //apptove new pavk
@@ -139,6 +152,8 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/package-requests/{id}/reject', [StudentController::class, 'rejectPackageRequest']);
 
 
+            //payment reminder
+Route::post('/students/{id}/remind-payment', [StudentController::class, 'sendPaymentReminder']);
         //student page 
         Route::get('/admin/students/list', [StudentController::class, 'adminIndex']);
         Route::post('/{id}/block', [StudentController::class, 'blockStudent']);
@@ -158,6 +173,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/payments/{id}/send-receipt', [PaymentController::class, 'sendReceiptEmail']);
 
 
+    // invoice 
+    Route::get('/invoices', [InvoiceController::class, 'index']);
+    Route::get('/invoices/{enrolmentId}', [InvoiceController::class, 'show']);
+Route::get('/invoices/export', [InvoiceController::class, 'export']);
+
+
+ Route::get('/company-settings', [CompanySettingController::class, 'index']);
+    Route::post('/company-settings', [CompanySettingController::class, 'update']);
 
     //notifi
 
@@ -202,7 +225,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/assignments/{id}', [InstructorAssignmentController::class, 'update']); 
         Route::delete('/assignments/{id}', [InstructorAssignmentController::class, 'destroy']);
 
-
+//reschedule
+Route::post('/admin/reschedule/{id}/approve', [RescheduleController::class, 'approve']);
+Route::post('/admin/reschedule/{id}/reject', [RescheduleController::class, 'reject']);
+Route::get('/admin/reschedules/pending', [RescheduleController::class, 'getPendingRequests']);
+Route::get('/reschedule-requests/{id}/status', [RescheduleController::class, 'getStatus']);
 
 
 
@@ -249,7 +276,9 @@ Route::middleware('instructor')->group(function () {
     Route::get('/instructor/history', [InstructorAssignmentController::class, 'getAttendanceHistory']);
     Route::get('/instructor/my-students', [InstructorAssignmentController::class, 'getMyAssignedStudents']);
    Route::put('/instructor/assignments/{id}', [InstructorAssignmentController::class, 'update']);
-
+   // Add this inside the instructor middleware group
+ Route::post('/instructor/check-conflict', [InstructorAssignmentController::class, 'checkInstructorConflict']);
+    
 //car and expense 
 
     Route::get('/my-assigned-car', [CarController::class, 'assignedCar']);
@@ -267,20 +296,36 @@ Route::middleware('instructor')->group(function () {
         Route::get('/instructor/dashboard/sessions', [InstructorDashboardController::class, 'getSessions']);
         Route::get('/instructor/dashboard/car', [InstructorDashboardController::class, 'getAssignedCar']);
         });
-
+// test driving test
+ Route::get('/instructor/test-eligible-students', [InstructorAssignmentController::class, 'getTestEligibleStudents']);
+    Route::post('/instructor/schedule-test', [InstructorAssignmentController::class, 'scheduleTest']);
+    Route::post('/instructor/test-result/{assignmentId}', [InstructorAssignmentController::class, 'saveTestResult']);
+    Route::get('/instructor/student/{studentId}/test-history', [InstructorAssignmentController::class, 'getStudentTestHistory']);
+    Route::get('/instructor/test-sessions', [InstructorAssignmentController::class, 'getTestSessions']);
 
 //student section
 
 
 
 Route::middleware('student')->group(function () {
-    Route::get('/student/dashboard', [StudentDashboardController::class, 'dashboard']);
-    Route::post('/student/reschedule', [StudentDashboardController::class, 'requestReschedule']);
+   Route::get('/student/dashboard', [StudentDashboardController::class, 'dashboard']);
+Route::post('/student/reschedule', [StudentDashboardController::class, 'requestReschedule']);
+   
     Route::get('/student/test-evaluations', [TestEvaluationController::class, 'getEvaluations']);
     Route::get('/student/test-evaluations/statistics', [TestEvaluationController::class, 'getStatistics']);
     Route::get('/student/test-evaluations/attendance', [TestEvaluationController::class, 'getAttendanceHistory']);
+    Route::get('/student/test-evaluations/upcoming', [TestEvaluationController::class, 'getUpcomingLessons']); // NEW
     Route::get('/student/test-evaluations/{id}', [TestEvaluationController::class, 'getEvaluation']);
     Route::post('/student/test-evaluations/{id}/response', [TestEvaluationController::class, 'submitResponse']);
+
+    Route::get('/student/tests/upcoming', [StudentDashboardController::class, 'getUpcomingTests']);
+    Route::get('/student/tests/completed', [StudentDashboardController::class, 'getCompletedTests']);
+    Route::get('/student/tests/history', [StudentDashboardController::class, 'getTestHistory']);
+
+    //payement
+    Route::get('/student/payments', [StudentDashboardController::class, 'getPayments']);
+
+
     Route::prefix('student')->group(function () {
         Route::get('/packages/active', [StudentPackageController::class, 'activePackage']);
         Route::get('/packages/history', [StudentPackageController::class, 'history']);

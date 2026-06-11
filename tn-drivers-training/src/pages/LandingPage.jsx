@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { 
   Car, Shield, Award, Users, Clock, MapPin, 
   ChevronRight, Phone, Mail, CheckCircle,
-  Calendar, UserCheck, Menu, X, Loader
+  Calendar, UserCheck, Menu, X, Loader, Plus, Minus,
+  Facebook, Instagram, Briefcase, Star, Sparkles
 } from 'lucide-react';
 import RegistrationPage from './RegistrationPage';
 import axios from 'axios';
@@ -11,8 +12,35 @@ import axios from 'axios';
 // API Configuration
 const API_BASE_URL = 'http://localhost:8000/api';
 
+// Real Canadian Driving FAQs
+const faqs = [
+  { 
+    q: "What is the minimum age to start driving training?", 
+    a: "In most Canadian provinces, you must be at least 16 years old to apply for your learner's permit (such as a G1 in Ontario or Class 7 in BC/Alberta). You can register for our courses once you hold a valid learner's permit." 
+  },
+  { 
+    q: "Do I need my learner's permit before starting lessons?", 
+    a: "Yes. While you can sometimes start online theory classes early, you must physically hold and carry a valid Canadian learner's licence before you are legally allowed to get behind the wheel for in-car instruction." 
+  },
+  { 
+    q: "Will taking a driving course reduce my insurance rates?", 
+    a: "Yes! Completing a Ministry/Provincial-approved driving course provides a certification history that is highly recognized by the Canadian insurance industry and can significantly lower your auto insurance premiums as a new driver." 
+  },
+  { 
+    q: "Does driving school shorten the wait time for my road test?", 
+    a: "In many provinces, absolutely. For example, in Ontario, graduating from an approved Beginner Driver Education (BDE) course reduces the mandatory waiting period for your first road test from 12 months down to just 8 months." 
+  },
+  { 
+    q: "What do I need to bring to my in-car lessons?", 
+    a: "You must bring three things: your physical, valid learner's permit (photos are not accepted by law), comfortable closed-toe shoes (no sandals or heavy boots), and corrective lenses/glasses if they are a condition on your licence." 
+  }
+];
+
 const LandingPage = () => {
   const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [showFaqModal, setShowFaqModal] = useState(false); 
+  const [showCareersModal, setShowCareersModal] = useState(false); 
+  const [activeFaq, setActiveFaq] = useState(null); 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,13 +51,8 @@ const LandingPage = () => {
     const fetchPackages = async () => {
       try {
         setLoading(true);
-        console.log('Fetching packages from:', `${API_BASE_URL}/packages`);
-        
         const response = await axios.get(`${API_BASE_URL}/packages`);
         
-        console.log('API Response:', response.data);
-        
-        // Handle different response structures
         let packagesData = [];
         if (response.data.data) {
           packagesData = response.data.data;
@@ -46,7 +69,6 @@ const LandingPage = () => {
       } catch (err) {
         console.error('Error fetching packages:', err);
         setError(err.response?.data?.message || 'Failed to load packages. Please try again later.');
-        // Use fallback packages
         setPackages([]);
       } finally {
         setLoading(false);
@@ -56,27 +78,15 @@ const LandingPage = () => {
     fetchPackages();
   }, []);
 
-  // Helper function to get price from package object
   const getPackagePrice = (pkg) => {
-    // Use amount field from Package model
-    const price = pkg.amount;
-    
-    // Convert to number if it's a string
+    const price = pkg.base_amount || pkg.amount;
     const numericPrice = typeof price === 'string' ? parseFloat(price) : price;
-    
-    // Check if it's a valid number
-    if (isNaN(numericPrice) || numericPrice === 0 || numericPrice === null) {
-      console.warn('Invalid price for package:', pkg.package_name, 'Price value:', price);
-      return null;
-    }
-    
+    if (isNaN(numericPrice) || numericPrice === 0 || numericPrice === null) return null;
     return numericPrice;
   };
 
-  // Helper function to render package items
   const renderIncludedItems = (includedItems) => {
     if (!includedItems) return [];
-    
     let items = [];
     if (Array.isArray(includedItems)) {
       items = includedItems;
@@ -87,21 +97,13 @@ const LandingPage = () => {
         items = includedItems.split(',').map(item => item.trim());
       }
     }
-    
     return items;
   };
 
-  // Helper to format price
   const formatPrice = (price) => {
-    if (price === null || price === undefined) {
-      return 'Contact for Price';
-    }
-    
+    if (price === null || price === undefined) return 'Contact for Price';
     const numericPrice = typeof price === 'string' ? parseFloat(price) : price;
-    
-    if (isNaN(numericPrice) || numericPrice === 0) {
-      return 'Contact for Price';
-    }
+    if (isNaN(numericPrice) || numericPrice === 0) return 'Contact for Price';
     
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
@@ -111,7 +113,6 @@ const LandingPage = () => {
     }).format(numericPrice);
   };
 
-  // Determine which package is featured
   const getFeaturedPackageIndex = () => {
     if (packages.length === 0) return -1;
     const popularIndex = packages.findIndex(p => p.is_popular || p.featured);
@@ -121,6 +122,15 @@ const LandingPage = () => {
 
   const featuredIndex = getFeaturedPackageIndex();
 
+  const toggleFaq = (index) => {
+    setActiveFaq(activeFaq === index ? null : index);
+  };
+
+  const scrollToTop = (e) => {
+    e.preventDefault();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950">
       
@@ -129,8 +139,11 @@ const LandingPage = () => {
         <div className="mx-auto px-2 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16 sm:h-20 gap-1">
             
-            {/* Logo */}
-            <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
+            <a 
+              href="#"
+              onClick={scrollToTop} 
+              className="flex items-center gap-1.5 sm:gap-3 min-w-0 hover:opacity-80 transition-opacity cursor-pointer"
+            >
               <div className="w-30 sm:w-70 h-18 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden bg-white dark:bg-teal-900/20">
                 <img 
                   src="/logo.webp" 
@@ -138,9 +151,8 @@ const LandingPage = () => {
                   className="w-full h-full object-contain p-1"
                 />
               </div>
-            </div>
+            </a>
 
-            {/* Desktop Navigation Links */}
             <div className="hidden lg:flex items-center gap-6 lg:gap-8">
               <a href="#about" className="text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-teal-500 transition">About</a>
               <a href="#packages" className="text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-teal-500 transition">Packages</a>
@@ -148,7 +160,6 @@ const LandingPage = () => {
               <a href="#contact" className="text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-teal-500 transition">Contact</a>
             </div>
 
-            {/* Auth Buttons */}
             <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
               <Link 
                 to="/login" 
@@ -163,7 +174,6 @@ const LandingPage = () => {
                 Register
               </button>
               
-              {/* Mobile menu toggle */}
               <button 
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 className="lg:hidden p-1 text-slate-600 dark:text-slate-300"
@@ -173,22 +183,13 @@ const LandingPage = () => {
             </div>
           </div>
 
-          {/* Mobile Navigation Menu */}
           {mobileMenuOpen && (
             <div className="lg:hidden py-2 border-t border-slate-200 dark:border-slate-800 animate-in slide-in-from-top-2">
               <div className="flex flex-wrap justify-center items-center gap-2 sm:gap-3">
-                <a href="#about" onClick={() => setMobileMenuOpen(false)} className="text-sm font-bold text-slate-600 dark:text-slate-300 px-3 sm:px-4 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition whitespace-nowrap">
-                  About
-                </a>
-                <a href="#packages" onClick={() => setMobileMenuOpen(false)} className="text-sm font-bold text-slate-600 dark:text-slate-300 px-3 sm:px-4 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition whitespace-nowrap">
-                  Packages
-                </a>
-                <a href="#process" onClick={() => setMobileMenuOpen(false)} className="text-sm font-bold text-slate-600 dark:text-slate-300 px-3 sm:px-4 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition whitespace-nowrap">
-                  Steps
-                </a>
-                <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="text-sm font-bold text-slate-600 dark:text-slate-300 px-3 sm:px-4 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition whitespace-nowrap">
-                  Contact
-                </a>
+                <a href="#about" onClick={() => setMobileMenuOpen(false)} className="text-sm font-bold text-slate-600 dark:text-slate-300 px-3 sm:px-4 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition whitespace-nowrap">About</a>
+                <a href="#packages" onClick={() => setMobileMenuOpen(false)} className="text-sm font-bold text-slate-600 dark:text-slate-300 px-3 sm:px-4 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition whitespace-nowrap">Packages</a>
+                <a href="#process" onClick={() => setMobileMenuOpen(false)} className="text-sm font-bold text-slate-600 dark:text-slate-300 px-3 sm:px-4 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition whitespace-nowrap">Steps</a>
+                <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="text-sm font-bold text-slate-600 dark:text-slate-300 px-3 sm:px-4 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition whitespace-nowrap">Contact</a>
               </div>
             </div>
           )}
@@ -214,7 +215,7 @@ const LandingPage = () => {
               </h1>
               
               <p className="text-sm sm:text-lg text-slate-600 dark:text-slate-300 mb-8 max-w-md mx-auto md:mx-0">
-                Join thousands of successful drivers who trusted TerraDriving for their journey.
+                Professional, patient, and safety-focused driving instruction — helping you become a confident driver for life.
               </p>
 
               <div className="flex flex-col xs:flex-row justify-center md:justify-start gap-3">
@@ -251,7 +252,7 @@ const LandingPage = () => {
           <div className="text-center mb-8 sm:mb-16">
             <span className="text-teal-500 font-black text-[10px] sm:text-sm uppercase tracking-wider">Why Choose Us</span>
             <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mt-2">
-              Canada's Most Trusted{' '}
+              Newfoundland's Trusted{' '}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-500 to-indigo-600">
                 Driving School
               </span>
@@ -275,7 +276,7 @@ const LandingPage = () => {
               </div>
               <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white mb-2 sm:mb-3">Flexible Scheduling</h3>
               <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400">
-                Book lessons at times that work best for you, including evenings and weekends.
+                Book lessons at times that work best for you, including mornings, afternoons, and evenings.
               </p>
             </div>
 
@@ -285,7 +286,7 @@ const LandingPage = () => {
               </div>
               <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white mb-2 sm:mb-3">Multiple Locations</h3>
               <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400">
-                Convenient locations across Canada with modern training vehicles.
+                Serving Marystown, Burin, St. John's, Mount Pearl, and Grand Falls.
               </p>
             </div>
           </div>
@@ -307,7 +308,6 @@ const LandingPage = () => {
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
-            
             {[
               { num: 1, title: "Create Account", desc: "Sign up with your basic information and choose your preferred package.", icon: UserCheck, time: "5 minutes" },
               { num: 2, title: "Get Approved", desc: "Our admin team reviews your application and assigns you an instructor.", icon: Clock, time: "24-48 hours" },
@@ -357,7 +357,6 @@ const LandingPage = () => {
             </h2>
           </div>
 
-          {/* Loading State */}
           {loading && (
             <div className="flex justify-center items-center py-12 sm:py-20">
               <Loader className="animate-spin text-teal-500" size={40} />
@@ -365,7 +364,6 @@ const LandingPage = () => {
             </div>
           )}
 
-          {/* Error State */}
           {error && !loading && (
             <div className="text-center py-12 sm:py-20">
               <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 max-w-md mx-auto">
@@ -380,13 +378,16 @@ const LandingPage = () => {
             </div>
           )}
 
-          {/* Packages Grid */}
           {!loading && !error && packages.length > 0 && (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
               {packages.map((pkg, index) => {
                 const isFeatured = index === featuredIndex;
                 const includedItems = renderIncludedItems(pkg.included_items);
                 const packagePrice = getPackagePrice(pkg);
+                
+                // ✨ ADDED: Tier logic based on API data (defaults to Basic if not set)
+                const tier = pkg.tier || 'Basic';
+                const isPremium = tier === 'Premium';
                 
                 return (
                   <div 
@@ -402,8 +403,20 @@ const LandingPage = () => {
                       </div>
                     )}
                     
-                    <div className={`w-14 h-14 sm:w-16 sm:h-16 ${isFeatured ? 'bg-white/20' : 'bg-teal-100 dark:bg-teal-900/30'} rounded-2xl flex items-center justify-center mb-4 sm:mb-6`}>
-                      <Car size={22} className={`sm:w-6 sm:h-6 ${isFeatured ? 'text-white' : 'text-teal-500'}`} />
+                    {/* ✨ ADDED: Tier Badge paired with the Car Icon */}
+                    <div className="flex items-center gap-4 mb-4 sm:mb-6">
+                      <div className={`w-14 h-14 sm:w-16 sm:h-16 ${isFeatured ? 'bg-white/20' : 'bg-teal-100 dark:bg-teal-900/30'} rounded-2xl flex items-center justify-center`}>
+                        <Car size={22} className={`sm:w-6 sm:h-6 ${isFeatured ? 'text-white' : 'text-teal-500'}`} />
+                      </div>
+                      
+                      <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border ${
+                        isPremium 
+                          ? (isFeatured ? 'bg-amber-400/20 text-amber-300 border-amber-400/30' : 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800')
+                          : (isFeatured ? 'bg-white/20 text-white border-white/30' : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700')
+                      }`}>
+                        {isPremium && <Sparkles size={12} className={isFeatured ? 'text-amber-300' : 'text-amber-500'} />}
+                        {tier} Tier
+                      </div>
                     </div>
                     
                     <h3 className={`text-xl sm:text-2xl font-black ${isFeatured ? 'text-white' : 'text-slate-900 dark:text-white'} mb-2`}>
@@ -414,7 +427,6 @@ const LandingPage = () => {
                       {pkg.license_class ? `${pkg.license_class} License` : 'Professional Training'}
                     </p>
                     
-                    {/* Price Display */}
                     <div className={`text-2xl sm:text-3xl font-black ${isFeatured ? 'text-white' : 'text-teal-500'} mb-4 sm:mb-6`}>
                       {formatPrice(packagePrice)}
                     </div>
@@ -474,7 +486,6 @@ const LandingPage = () => {
             </div>
           )}
 
-          {/* Empty State */}
           {!loading && !error && packages.length === 0 && (
             <div className="text-center py-12 sm:py-20">
               <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6 max-w-md mx-auto">
@@ -502,21 +513,23 @@ const LandingPage = () => {
                   Ready to Start Your Journey?
                 </h2>
                 <p className="text-base sm:text-lg md:text-xl text-white/90 mb-6 sm:mb-8">
-                  Join thousands of successful drivers who chose TerraDriving for their training.
+                  Get in touch with us today to start your driving education.
                 </p>
                 
                 <div className="space-y-3 sm:space-y-4">
                   <div className="flex items-center justify-center md:justify-start gap-2 sm:gap-3 text-white">
                     <Phone size={16} className="sm:w-5 sm:h-5" />
-                    <span className="text-sm sm:text-base md:text-lg font-bold">1-800-TERRA-DRIVE</span>
+                    <span className="text-sm sm:text-base md:text-lg font-bold">+1 709-749-1564</span>
                   </div>
                   <div className="flex items-center justify-center md:justify-start gap-2 sm:gap-3 text-white">
                     <Mail size={16} className="sm:w-5 sm:h-5" />
-                    <span className="text-sm sm:text-base md:text-lg font-bold">info@terradriving.com</span>
+                    <span className="text-sm sm:text-base md:text-lg font-bold">info@terranovadriverstraining.ca</span>
                   </div>
                   <div className="flex items-center justify-center md:justify-start gap-2 sm:gap-3 text-white">
-                    <MapPin size={16} className="sm:w-5 sm:h-5" />
-                    <span className="text-sm sm:text-base md:text-lg font-bold">Multiple locations across Canada</span>
+                    <MapPin size={16} className="sm:w-5 sm:h-5 shrink-0" />
+                    <span className="text-sm sm:text-base md:text-lg font-bold text-left">
+                      St. John's, Mount Pearl, Grand Falls, Marystown, Burin
+                    </span>
                   </div>
                 </div>
               </div>
@@ -528,9 +541,6 @@ const LandingPage = () => {
                 >
                   Register Now
                 </button>
-                <p className="text-white/80 mt-3 sm:mt-4 text-[10px] sm:text-xs md:text-sm">
-                  No credit card required • Cancel anytime
-                </p>
               </div>
             </div>
           </div>
@@ -542,16 +552,47 @@ const LandingPage = () => {
         <div className="mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8">
             
+            {/* BRANDING & SOCIALS */}
             <div>
               <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-teal-500 rounded-lg flex items-center justify-center">
-                  <Car size={16} className="sm:w-5 sm:h-5 text-white" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-lg flex items-center justify-center">
+                  <img src="/logo.webp" alt="Terra Nova" className="w-6 h-6 object-contain" />
                 </div>
-                <span className="text-base sm:text-xl font-black">TerraDriving</span>
+                <span className="text-base sm:text-xl font-black">Terra Nova</span>
               </div>
-              <p className="text-slate-400 text-[10px] sm:text-sm">
-                Canada's most trusted driving school since 2010.
+              <p className="text-slate-400 text-[10px] sm:text-sm mb-4 leading-relaxed">
+                NL MOTOR REGISTRATION APPROVED DRIVER TRAINING SCHOOL.
               </p>
+              
+              <div className="flex items-center gap-3 mt-4">
+                <a 
+                  href="https://www.facebook.com/profile.php?id=61583376632196" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white hover:bg-teal-500 transition-all" 
+                  aria-label="Facebook"
+                >
+                  <Facebook size={16} />
+                </a>
+                <a 
+                  href="https://www.instagram.com/terranova_driverstraining/" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white hover:bg-teal-500 transition-all" 
+                  aria-label="Instagram"
+                >
+                  <Instagram size={16} />
+                </a>
+                <a 
+                  href="https://share.google/MKoxAaYuib9EA53q6" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white hover:bg-teal-500 transition-all" 
+                  aria-label="Google Reviews"
+                >
+                  <Star size={16} />
+                </a>
+              </div>
             </div>
 
             <div>
@@ -559,8 +600,16 @@ const LandingPage = () => {
               <ul className="space-y-1 sm:space-y-2">
                 <li><a href="#about" className="text-slate-400 hover:text-white transition text-[10px] sm:text-sm">About Us</a></li>
                 <li><a href="#packages" className="text-slate-400 hover:text-white transition text-[10px] sm:text-sm">Packages</a></li>
-                <li><a href="#process" className="text-slate-400 hover:text-white transition text-[10px] sm:text-sm">How It Works</a></li>
-                <li><a href="#contact" className="text-slate-400 hover:text-white transition text-[10px] sm:text-sm">Contact</a></li>
+                <li>
+                  <button 
+                    onClick={() => setShowCareersModal(true)}
+                    className="text-slate-400 hover:text-white transition text-[10px] sm:text-sm"
+                  >
+                    Careers
+                  </button>
+                </li>
+                <li><a href="#contact" className="text-slate-400 hover:text-white transition text-[10px] sm:text-sm">Contact Us</a></li>
+                <li><Link to="/login" className="text-slate-400 hover:text-white transition text-[10px] sm:text-sm">MyTN Account</Link></li>
               </ul>
             </div>
 
@@ -568,7 +617,6 @@ const LandingPage = () => {
               <h4 className="font-black text-xs sm:text-sm uppercase tracking-wider mb-3 sm:mb-4">Support</h4>
               <ul className="space-y-1 sm:space-y-2">
                 <li><Link to="/login" className="text-slate-400 hover:text-white transition text-[10px] sm:text-sm">Student Login</Link></li>
-                <li><Link to="/login" className="text-slate-400 hover:text-white transition text-[10px] sm:text-sm">Instructor Login</Link></li>
                 <li>
                   <button 
                     onClick={() => setShowRegisterModal(true)}
@@ -577,7 +625,14 @@ const LandingPage = () => {
                     Register
                   </button>
                 </li>
-                <li><a href="#" className="text-slate-400 hover:text-white transition text-[10px] sm:text-sm">FAQ</a></li>
+                <li>
+                  <button 
+                    onClick={() => setShowFaqModal(true)}
+                    className="text-slate-400 hover:text-white transition text-[10px] sm:text-sm"
+                  >
+                    FAQ / Help
+                  </button>
+                </li>
               </ul>
             </div>
 
@@ -591,15 +646,17 @@ const LandingPage = () => {
             </div>
           </div>
 
-          <div className="border-t border-slate-800 mt-6 sm:mt-12 pt-6 sm:pt-8 text-center text-slate-400 text-[10px] sm:text-sm">
-            <p>&copy; {new Date().getFullYear()} TerraDriving School. All rights reserved.</p>
+          <div className="border-t border-slate-800 mt-6 sm:mt-12 pt-6 sm:pt-8 text-center text-slate-400 text-[10px] sm:text-sm flex flex-col sm:flex-row justify-center items-center gap-2 sm:gap-6">
+            <p>&copy; {new Date().getFullYear()} Terra Nova Drivers Training.</p>
+            <span className="hidden sm:inline text-slate-600">|</span>
+            <p>Powered by OpenPath Consulting</p>
           </div>
         </div>
       </footer>
 
-      {/* Registration Modal */}
+      {/* ==================== REGISTRATION MODAL ==================== */}
       {showRegisterModal && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 overflow-y-auto">
           <div className="relative w-full max-w-5xl my-auto animate-in fade-in zoom-in duration-300">
             <RegistrationPage 
               onBack={() => setShowRegisterModal(false)} 
@@ -607,10 +664,171 @@ const LandingPage = () => {
             />
             <button 
               onClick={() => setShowRegisterModal(false)}
-              className="absolute top-2 right-2 sm:top-4 sm:right-4 z-110 p-1.5 sm:p-2 bg-black/50 hover:bg-red-500 text-white rounded-full transition-all shadow-xl"
+              className="absolute top-2 right-2 sm:top-4 sm:right-4 z-[110] p-1.5 sm:p-2 bg-black/50 hover:bg-red-500 text-white rounded-full transition-all shadow-xl"
             >
               <X size={16} className="sm:w-5 sm:h-5" />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== FAQ MODAL ==================== */}
+      {showFaqModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
+          <div className="relative w-full max-w-3xl max-h-[85vh] flex flex-col bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200">
+            
+            <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900 shrink-0">
+              <div>
+                <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">Frequently Asked Questions</h3>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Canadian Driving Guidelines</p>
+              </div>
+              <button
+                onClick={() => setShowFaqModal(false)}
+                className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"
+              >
+                <X size={20} className="text-slate-500 dark:text-slate-400" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto custom-scrollbar bg-white dark:bg-slate-950 flex-1">
+              <div className="space-y-4">
+                {faqs.map((faq, index) => {
+                  const isOpen = activeFaq === index;
+                  return (
+                    <div 
+                      key={index} 
+                      className={`border ${isOpen ? 'border-teal-500 dark:border-teal-500' : 'border-slate-200 dark:border-slate-800'} rounded-2xl overflow-hidden transition-colors duration-200`}
+                    >
+                      <button
+                        onClick={() => toggleFaq(index)}
+                        className={`w-full flex items-center justify-between p-4 sm:p-5 text-left transition-colors ${isOpen ? 'bg-teal-50 dark:bg-teal-900/10' : 'bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
+                      >
+                        <span className={`text-sm sm:text-base font-bold pr-4 ${isOpen ? 'text-teal-700 dark:text-teal-400' : 'text-slate-700 dark:text-slate-200'}`}>
+                          {faq.q}
+                        </span>
+                        <div className={`p-1.5 rounded-full flex-shrink-0 ${isOpen ? 'bg-teal-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
+                          {isOpen ? <Minus size={16} /> : <Plus size={16} />}
+                        </div>
+                      </button>
+                      
+                      {isOpen && (
+                        <div className="p-4 sm:p-5 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
+                          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed">
+                            {faq.a}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              
+              <div className="mt-8 p-4 sm:p-5 bg-indigo-50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-900/20 text-center">
+                <p className="text-sm font-bold text-indigo-800 dark:text-indigo-400">Still have questions?</p>
+                <p className="text-sm text-indigo-600 dark:text-indigo-300 mt-1 mb-3">Our support team is ready to help you get on the road.</p>
+                <a href="#contact" onClick={() => setShowFaqModal(false)} className="inline-block px-5 py-2 bg-indigo-600 text-white text-xs font-black uppercase tracking-wider rounded-lg hover:bg-indigo-700 transition">Contact Us</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== CAREERS MODAL ==================== */}
+      {showCareersModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
+          <div className="relative w-full max-w-3xl max-h-[90vh] flex flex-col bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200">
+            
+            <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900 shrink-0">
+              <div>
+                <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">Careers</h3>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Join the Terra Nova Team</p>
+              </div>
+              <button
+                onClick={() => setShowCareersModal(false)}
+                className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"
+              >
+                <X size={20} className="text-slate-500 dark:text-slate-400" />
+              </button>
+            </div>
+
+            <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar bg-white dark:bg-slate-950 flex-1">
+              
+              <div className="mb-8">
+                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mb-2">Driving Instructor</h2>
+                <p className="text-lg font-bold text-teal-600 dark:text-teal-500 mb-4">Terranova Drivers Training</p>
+                
+                <div className="flex flex-wrap gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-md">
+                    <Briefcase size={14} /> Full-time / Part-time
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-md">
+                    <MapPin size={14} /> On-site
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-md">
+                    <Clock size={14} /> Flexible Schedule
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-6 text-sm text-slate-600 dark:text-slate-300">
+                <p className="leading-relaxed">
+                  We’re looking for patient, safety-focused Driving Instructors to provide exceptional in-car training and help students become confident, responsible drivers. If you have a clean record and a passion for teaching, we’d love to meet you.
+                </p>
+
+                <div>
+                  <h4 className="text-base font-black text-slate-900 dark:text-white mb-3">Key Responsibilities</h4>
+                  <ul className="list-disc pl-5 space-y-2">
+                    <li>Deliver one-to-one in-car driving lessons following company curriculum and local regulations.</li>
+                    <li>Assess student skills and provide clear, constructive feedback after each session.</li>
+                    <li>Maintain accurate lesson logs and student progress records.</li>
+                    <li>Ensure vehicle safety and cleanliness before every lesson.</li>
+                    <li>Communicate professionally with students and parents/guardians as needed.</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="text-base font-black text-slate-900 dark:text-white mb-3">Qualifications</h4>
+                  <ul className="list-disc pl-5 space-y-2">
+                    <li>Valid driver’s licence and a clean driving abstract.</li>
+                    <li>Instructor licence/certification (or willingness to obtain, where required).</li>
+                    <li>Strong communication, patience, and professionalism.</li>
+                    <li>Availability for evenings and/or weekends.</li>
+                    <li>Background check may be required.</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="text-base font-black text-slate-900 dark:text-white mb-3">What We Offer</h4>
+                  <ul className="list-disc pl-5 space-y-2">
+                    <li>Competitive compensation with performance incentives.</li>
+                    <li>Flexible scheduling options.</li>
+                    <li>Supportive team and standardized training materials.</li>
+                    <li>Opportunities for growth and additional certifications.</li>
+                  </ul>
+                </div>
+
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                  <h4 className="font-black text-slate-900 dark:text-white mb-2">Details</h4>
+                  <p><strong>Employment Type:</strong> Full-time / Part-time</p>
+                  <p><strong>Start Date:</strong> ASAP</p>
+                  <p><strong>Location:</strong> Local service area</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 shrink-0 flex flex-col items-center justify-center gap-3">
+              <p className="text-sm font-bold text-slate-600 dark:text-slate-400 text-center">
+                Ready to help new drivers succeed? Send your resume to:
+              </p>
+              <a 
+                href="mailto:info@terranovadriverstraining.ca?subject=Application for Driving Instructor"
+                className="w-full sm:w-auto px-8 py-3 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 text-sm font-black tracking-wider rounded-xl border-2 border-teal-500 hover:bg-teal-500 hover:text-white transition-all text-center flex items-center justify-center gap-2"
+              >
+                <Mail size={18} />
+                info@terranovadriverstraining.ca
+              </a>
+            </div>
+
           </div>
         </div>
       )}
@@ -629,6 +847,16 @@ const LandingPage = () => {
         .animation-delay-2000 {
           animation-delay: 2000ms;
         }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        .animate-fadeIn { animation: fadeIn 0.2s ease-out; }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; }
       `}</style>
     </div>
   );

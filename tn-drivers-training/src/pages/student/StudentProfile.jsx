@@ -294,71 +294,85 @@ const StudentProfile = () => {
           <div className="space-y-6">
             
             {/* Basic Information */}
-            <ProfileSection title="Basic Information" icon={User}>
-              {!isEditing ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="flex items-center gap-4 md:col-span-2 pb-4 border-b border-slate-100 dark:border-slate-800">
-                    {user.profile_picture ? (
-                      <img
-                        src={user.profile_picture}
-                        alt={user.name}
-                        className="w-20 h-20 rounded-2xl object-cover shadow-lg"
-                      />
-                    ) : (
-                      <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center text-white font-bold text-2xl shadow-lg">
-                        {user.name.charAt(0)}
-                      </div>
-                    )}
-                    <div>
-                      <h3 className="text-xl font-bold text-slate-800 dark:text-white">{user.name}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Mail size={14} className="text-slate-400" />
-                        <span className="text-sm text-slate-600 dark:text-slate-400">{user.email}</span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Phone size={14} className="text-slate-400" />
-                        <span className="text-sm text-slate-600 dark:text-slate-400">{user.phone}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <InfoRow label="Date of Birth" value={formatDate(profile.dob)} />
-                  <InfoRow label="Age" value={getAge(profile.dob)} />
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="col-span-1">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1">
-                      Full Name
-                    </label>
-                    <div className="px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-sm font-medium text-slate-500 dark:text-slate-400">
-                      {user.name}
-                    </div>
-                  </div>
-                  <div className="col-span-1">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1">
-                      Email
-                    </label>
-                    <div className="px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-sm font-medium text-slate-500 dark:text-slate-400">
-                      {user.email}
-                    </div>
-                  </div>
-                  <EditField 
-                    label="Phone" 
-                    name="user.phone" 
-                    type="tel" 
-                    value={editForm.user?.phone || ''}
-                    onChange={handleInputChange}
-                  />
-                  <EditField 
-                    label="Date of Birth" 
-                    name="dob" 
-                    type="date" 
-                    value={editForm.dob || ''}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              )}
-            </ProfileSection>
+            {/* Basic Information */}
+<ProfileSection title="Basic Information" icon={User}>
+  {!isEditing ? (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 md:col-span-2 pb-4 border-b border-slate-100 dark:border-slate-800">
+        {/* Profile Image - Fixed positioning */}
+        <div className="flex-shrink-0">
+          {user.profile_picture ? (
+            <img
+              src={user.profile_picture}
+              alt={user.name}
+              className="w-20 h-20 rounded-2xl object-cover shadow-lg"
+            />
+          ) : (
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center text-white font-bold text-2xl shadow-lg">
+              {user.name?.charAt(0).toUpperCase() || 'S'}
+            </div>
+          )}
+        </div>
+        
+        {/* User Info - Separate container */}
+        <div className="flex-1 min-w-0">
+          <h3 className="text-xl font-bold text-slate-800 dark:text-white break-words">
+            {user.name}
+          </h3>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2">
+            <div className="flex items-center gap-2">
+              <Mail size={14} className="text-slate-400 flex-shrink-0" />
+              <span className="text-sm text-slate-600 dark:text-slate-400 break-all">
+                {user.email}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Phone size={14} className="text-slate-400 flex-shrink-0" />
+              <span className="text-sm text-slate-600 dark:text-slate-400">
+                {user.phone || 'Not provided'}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <InfoRow label="Date of Birth" value={formatDate(profile.dob)} />
+      <InfoRow label="Age" value={getAge(profile.dob)} />
+    </div>
+  ) : (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="col-span-1">
+        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1">
+          Full Name
+        </label>
+        <div className="px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-sm font-medium text-slate-500 dark:text-slate-400">
+          {user.name}
+        </div>
+      </div>
+      <div className="col-span-1">
+        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1">
+          Email
+        </label>
+        <div className="px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-sm font-medium text-slate-500 dark:text-slate-400">
+          {user.email}
+        </div>
+      </div>
+      <EditField 
+        label="Phone" 
+        name="user.phone" 
+        type="tel" 
+        value={editForm.user?.phone || ''}
+        onChange={handleInputChange}
+      />
+      <EditField 
+        label="Date of Birth" 
+        name="dob" 
+        type="date" 
+        value={editForm.dob || ''}
+        onChange={handleInputChange}
+      />
+    </div>
+  )}
+</ProfileSection>
 
             {/* Package & Instructor Information (Read-only) */}
             <ProfileSection title="Course Information" icon={BookOpen}>

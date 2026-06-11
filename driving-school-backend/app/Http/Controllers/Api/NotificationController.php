@@ -163,42 +163,84 @@ class NotificationController extends Controller
     }
 
     // Default message based on notification type
-     
+    private function getDefaultMessage($type, $data)
+    {
+        // Use the stored notification_type if available
+        $slug = $data['notification_type'] ?? '';
 
-private function getDefaultMessage($type, $data)
-{
-    // Use the stored notification_type if available
-    $slug = $data['notification_type'] ?? '';
+        // RESCHEDULE REJECTED - Fix for in-app notification
+        if ($slug === 'reschedule_rejected') {
+            $date = $data['requested_date'] ?? 'the requested date';
+            return "❌ Reschedule Request Rejected: Your request to reschedule on {$date} has been rejected by Admin.";
+        }
 
-    if ($slug === 'student_new_assignment') {
-        $instructor = $data['instructor_name'] ?? 'your instructor';
-        $date = $data['date'] ?? 'upcoming date';
-        return "New lesson scheduled with {$instructor} on {$date}.";
+        // RESCHEDULE APPROVED (for student)
+        if ($slug === 'student_assignment_updated') {
+            $instructor = $data['instructor_name'] ?? 'your instructor';
+            $newDate = $data['new_date'] ?? 'a new date';
+            $newTime = $data['new_time'] ?? '';
+            return "✅ Reschedule Approved: Your lesson has been rescheduled to {$newDate} at {$newTime} with {$instructor}.";
+        }
+
+        // RESCHEDULE REQUEST (for admin)
+        if ($slug === 'admin_reschedule_request_alert') {
+            $student = $data['student_name'] ?? 'A student';
+            $date = $data['requested_date'] ?? '';
+            return "📅 Reschedule Request: {$student} requested to reschedule a lesson on {$date}.";
+        }
+
+        // RESCHEDULE REQUEST (for instructor)
+        if ($slug === 'student_reschedule_request') {
+            $student = $data['student_name'] ?? 'A student';
+            $date = $data['requested_date'] ?? '';
+            return "📅 Reschedule Request: {$student} requested to reschedule a lesson on {$date}.";
+        }
+
+        // STUDENT ASSIGNMENT
+        if ($slug === 'student_new_assignment') {
+            $instructor = $data['instructor_name'] ?? 'your instructor';
+            $date = $data['date'] ?? 'upcoming date';
+            return "New lesson scheduled with {$instructor} on {$date}.";
+        }
+
+        // INSTRUCTOR SCHEDULE UPDATED
+        if ($slug === 'instructor_schedule_updated') {
+            $student = $data['student_name'] ?? 'A student';
+            $date = $data['new_date'] ?? '';
+            return "Schedule Updated: Your lesson with {$student} has been rescheduled to {$date}.";
+        }
+
+        // Legacy cases (based on class name)
+        if (str_contains($type, 'StudentAssigned')) {
+            return 'New student assigned to you';
+        }
+        
+        if (str_contains($type, 'PaymentReceived')) {
+            return 'Payment received: $' . number_format($data['amount'] ?? 0, 2);
+        }
+        
+        if (str_contains($type, 'WelcomeStudent')) {
+            return 'Welcome to the driving school!';
+        }
+        
+        if (str_contains($type, 'InstructorChanged')) {
+            return 'Your instructor has been changed';
+        }
+
+        // Package Request
+        if ($slug === 'new_package_request' || str_contains($type, 'NewPackageRequestNotification')) {
+            $student = $data['student_name'] ?? 'A student';
+            return "📦 New Package Request from {$student}";
+        }
+
+        $slug = $data['notification_type'] ?? '';
+
+    // ✨ 1. STUDENT PAYMENT REMINDER
+    if ($slug === 'payment_reminder') {
+        return $data['message'] ?? "Friendly reminder: You have an outstanding balance due.";
     }
 
-    if ($slug === 'student_assignment_updated') {
-        $instructor = $data['instructor_name'] ?? 'your instructor';
-        $newDate = $data['new_date'] ?? 'a new date';
-        return "Your lesson has been rescheduled by {$instructor} to {$newDate}.";
+        // Fallback to the precomputed message from the service
+        return $data['message'] ?? 'New notification';
     }
-
-    if ($slug === 'student_reschedule_request') {
-        $student = $data['student_name'] ?? 'A student';
-        return "{$student} requested to reschedule a lesson.";
-    }
-
-    // Legacy cases (based on class name)
-    if (str_contains($type, 'StudentAssigned')) {
-        return 'New student assigned to you';
-    } elseif (str_contains($type, 'PaymentReceived')) {
-        return 'Payment received: $' . number_format($data['amount'] ?? 0, 2);
-    } elseif (str_contains($type, 'WelcomeStudent')) {
-        return 'Welcome to the driving school!';
-    } elseif (str_contains($type, 'InstructorChanged')) {
-        return 'Your instructor has been changed';
-    }
-
-    // Fallback to the precomputed message from the service
-    return $data['message'] ?? 'New notification';
-}
 }

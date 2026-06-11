@@ -9,7 +9,7 @@ import {
 import axios from 'axios';
 import Pagination from '../components/Pagination';
 
-const API_BASE = "http://localhost:8000/api";
+const API_BASE = "http://127.0.0.1:8000/api";
 
 // Export Options Modal Component
 const ExportOptionsModal = ({ isOpen, onClose, onDownloadCSV, onCopyClipboard, downloading }) => {
@@ -83,6 +83,9 @@ const Finances = () => {
   const [exporting, setExporting] = useState(false);
   const [expenses, setExpenses] = useState([]);
   
+  // Premium UI States
+  const [notification, setNotification] = useState(null);
+  
   // Search state variables
   const [searchInput, setSearchInput] = useState(''); 
   const [searchTerm, setSearchTerm] = useState('');
@@ -120,6 +123,15 @@ const Finances = () => {
     }
   };
 
+  const showNotification = (type, message) => {
+    setNotification({ type, message });
+    if (type !== 'success') {
+      setTimeout(() => setNotification(null), 5000);
+    } else {
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
   // Helper function to get instructor location
   const getInstructorLocation = (expense) => {
     if (expense.location) return expense.location;
@@ -133,35 +145,34 @@ const Finances = () => {
     return 'Not Assigned';
   };
 
-  // Helper function to get the correct receipt URL
+  // --- BUG FIX: Dynamic Receipt URL for Production & Localhost ---
   const getReceiptUrl = (receiptPath) => {
     if (!receiptPath) return null;
     
+    // If it's already a full external URL, return it
     if (receiptPath.startsWith('http')) {
       return receiptPath;
     }
     
-    if (receiptPath.startsWith('/storage/')) {
-      return `http://localhost:8000${receiptPath}`;
-    }
+    // Strip leading slashes, 'public/' or 'storage/' from the stored path
+    let cleanPath = receiptPath.replace(/^\/?(public\/|storage\/)?/i, '');
     
-    if (receiptPath.startsWith('storage/')) {
-      return `http://localhost:8000/${receiptPath}`;
-    }
+    // Dynamically get the base URL by stripping '/api' from the API_BASE
+    // Local: http://127.0.0.1:8000/api -> http://127.0.0.1:8000
+    // Live: https://yourdomain.com/api -> https://yourdomain.com
+    const baseUrl = API_BASE.replace(/\/api$/i, '');
     
-    let cleanPath = receiptPath.replace(/^\/?(public\/)?/i, '');
-    return `http://localhost:8000/storage/${cleanPath}`;
+    return `${baseUrl}/storage/${cleanPath}`;
   };
 
   // Debounce search input
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
-      // Only trigger if the input actually changed
       if (searchTerm !== searchInput) {
         setSearchTerm(searchInput);
         setCurrentPage(1);
       }
-    }, 500); // Waits half a second after you stop typing
+    }, 500); 
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchInput, searchTerm]);
@@ -211,7 +222,7 @@ const Finances = () => {
       }
     } catch (err) {
       console.error("Access Denied or Server Error", err.response);
-      alert(err.response?.data?.message || "Failed to load expenses. Please check your connection.");
+      showNotification('error', err.response?.data?.message || "Failed to load expenses. Please check your connection.");
     } finally {
       setLoading(false);
       setInitialLoad(false); 
@@ -225,11 +236,12 @@ const Finances = () => {
   // Handle Status Update with Remarks
   const handleStatusUpdate = async (id, newStatus) => {
     if (!adminRemarks.trim() && newStatus === 'rejected') {
-      alert("Please provide remarks for rejecting this claim.");
+      showNotification('warning', "Please provide remarks for rejecting this claim.");
       return;
     }
 
     setUpdating(true);
+    setNotification(null);
     try {
       const token = localStorage.getItem('access_token') || localStorage.getItem('token');
       const res = await axios.post(`${API_BASE}/admin/expenses/${id}/status`, {
@@ -243,13 +255,13 @@ const Finances = () => {
         await fetchAllClaims();
         setSelectedExpense(null);
         setAdminRemarks('');
-        alert(`Claim successfully ${newStatus}.`);
+        showNotification('success', `Claim successfully ${newStatus}.`);
       } else {
-        alert(res.data.message || "Action failed.");
+        showNotification('error', res.data.message || "Action failed.");
       }
     } catch (err) {
       console.error("Status update error:", err);
-      alert(err.response?.data?.message || "Action failed. Please try again.");
+      showNotification('error', err.response?.data?.message || "Action failed. Please try again.");
     } finally {
       setUpdating(false);
     }
@@ -269,6 +281,7 @@ const Finances = () => {
   // Download as CSV
   const handleDownloadDataAsCSV = async () => {
     setExporting(true);
+    setNotification(null);
     try {
       const token = localStorage.getItem('access_token') || localStorage.getItem('token');
       
@@ -305,6 +318,7 @@ const Finances = () => {
       }, 500);
 
       setShowExportOptions(false);
+      showNotification('success', 'CSV downloaded successfully!');
       
     } catch (error) {
       console.error("Download Error:", error);
@@ -320,7 +334,7 @@ const Finances = () => {
         errorMsg = "Network error. Please check your connection and try again.";
       }
       
-      alert(errorMsg);
+      showNotification('error', errorMsg);
     } finally {
       setExporting(false);
     }
@@ -329,6 +343,7 @@ const Finances = () => {
   // Copy to Clipboard
   const handleCopyToClipboard = async () => {
     setExporting(true);
+    setNotification(null);
     try {
       const token = localStorage.getItem('access_token') || localStorage.getItem('token');
       
@@ -345,12 +360,12 @@ const Finances = () => {
       });
 
       await navigator.clipboard.writeText(response.data);
-      alert('✅ CSV data copied to clipboard!\n\nYou can now paste it into:\n• Microsoft Excel\n• Google Sheets\n• Any text editor');
+      showNotification('success', 'CSV data copied to clipboard! Ready to paste.');
       setShowExportOptions(false);
       
     } catch (error) {
       console.error("Copy Error:", error);
-      alert("Failed to copy data. Please try downloading as CSV instead.");
+      showNotification('error', "Failed to copy data. Please try downloading as CSV instead.");
     } finally {
       setExporting(false);
     }
@@ -408,8 +423,23 @@ const Finances = () => {
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors overflow-hidden">
+    <div className="flex-1 flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors overflow-hidden relative">
       
+      {/* INLINE NOTIFICATION BANNER */}
+      {notification && (
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[200] px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-4 fade-in duration-300 ${
+          notification.type === 'success' ? 'bg-emerald-500 text-white' : 
+          notification.type === 'warning' ? 'bg-amber-500 text-white' : 
+          'bg-rose-500 text-white'
+        }`}>
+          {notification.type === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
+          <span className="text-sm font-bold">{notification.message}</span>
+          {notification.type !== 'success' && (
+            <button onClick={() => setNotification(null)} className="ml-2 hover:opacity-75"><X size={16}/></button>
+          )}
+        </div>
+      )}
+
       {/* HEADER */}
       <header className="px-4 sm:px-6 lg:px-8 pt-6 sm:pt-10 pb-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
@@ -512,20 +542,29 @@ const Finances = () => {
                   placeholder="Search by instructor name or category..."
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
-                  className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm dark:text-slate-300 outline-none focus:ring-2 focus:ring-teal-500/20 transition-all shadow-sm"
+                  className="w-full pl-11 pr-10 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm dark:text-slate-300 outline-none focus:ring-2 focus:ring-teal-500/20 transition-all shadow-sm"
                 />
+                {searchInput && (
+                  <button
+                    onClick={() => { setSearchInput(''); setSearchTerm(''); setCurrentPage(1); }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-md text-slate-500 transition-colors"
+                    title="Clear search"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
               </div>
             </div>
 
             {/* Clear Filters Button */}
-            {(searchInput || statusFilter !== 'All' || categoryFilter !== 'All' || locationFilter !== 'All') && (
+            {/* {(searchInput || statusFilter !== 'All' || categoryFilter !== 'All' || locationFilter !== 'All') && (
               <button
                 onClick={clearFilters}
                 className="w-full sm:w-auto px-6 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 transition-all flex items-center justify-center gap-2 h-[42px]"
               >
                 <X size={16} /> Clear Filters
               </button>
-            )}
+            )} */}
           </div>
         </div>
 
@@ -737,9 +776,10 @@ const Finances = () => {
                       className="max-w-full max-h-[50vh] object-contain rounded-xl shadow-lg" 
                       alt="Receipt" 
                       onError={(e) => {
-                        console.error('Image failed to load:', getReceiptUrl(selectedExpense.receipt_path));
+                        // Advanced fallback if image is missing
                         e.target.onerror = null;
-                        const altPath = `http://localhost:8000/storage/${selectedExpense.receipt_path.replace(/^\/?(public\/)?/, '')}`;
+                        const baseUrl = API_BASE.replace(/\/api$/i, '');
+                        const altPath = `${baseUrl}/storage/${selectedExpense.receipt_path.replace(/^\/?(public\/)?/, '')}`;
                         if (e.target.src !== altPath) {
                           e.target.src = altPath;
                         } else {
@@ -758,13 +798,13 @@ const Finances = () => {
                       </a>
                       <button
                         onClick={() => {
-                          console.log('Receipt path:', selectedExpense.receipt_path);
-                          console.log('Full URL:', getReceiptUrl(selectedExpense.receipt_path));
-                          alert(`Receipt Path: ${selectedExpense.receipt_path}\n\nFull URL: ${getReceiptUrl(selectedExpense.receipt_path)}`);
+                          const url = getReceiptUrl(selectedExpense.receipt_path);
+                          navigator.clipboard.writeText(url);
+                          showNotification('success', 'Receipt URL copied to clipboard for debugging!');
                         }}
                         className="text-sm font-medium text-slate-500 hover:text-slate-700 flex items-center gap-1"
                       >
-                        <HelpCircle size={14} /> Debug
+                        <HelpCircle size={14} /> Copy URL
                       </button>
                     </div>
                   </>

@@ -18,128 +18,282 @@ use Illuminate\Support\Facades\Storage;
 class InstructorController extends Controller
 {
 
-    public function store(Request $request)
-{
-    $validator = Validator::make($request->all(), [
-        // User Fields
-        'name'            => 'required|string|max:255',
-        'email'           => 'required|email|unique:users,email',
-        'phone'           => 'required|string|unique:users,phone',
-        'password'        => 'required|string|min:8',
-        'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+//     public function store(Request $request)
+// {
+//     $validator = Validator::make($request->all(), [
+//         // User Fields
+//         'name'            => 'required|string|max:255',
+//         'email'           => 'required|email|unique:users,email',
+//         'phone'           => 'required|string|unique:users,phone',
+//         'password'        => 'required|string|min:8',
+//         'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
         
-        // Instructor Fields
-        'car_id'          => 'nullable|exists:cars,id',
-        'dob'             => 'required|date',
-        'licence_no'      => 'required|string|unique:instructors',
-        'inst_license_no' => 'required|string|unique:instructors',
-        'licence_expiry'  => 'required|date',
+//         // Instructor Fields
+//         'car_id'          => 'nullable|exists:cars,id',
+//         'dob'             => 'required|date',
+//         'licence_no'      => 'required|string|unique:instructors',
+//         'inst_license_no' => 'required|string|unique:instructors',
+//         'licence_expiry'  => 'required|date',
         
-        // Missing Location & Professional Fields (CRITICAL FOR 422 FIX)
-        'assigned_location'       => 'required|string',
-        'city'                    => 'nullable|string',
-        'province'                => 'nullable|string',
-        'country'                 => 'nullable|string',
-        'language'                => 'nullable|string',
-        'street_address'          => 'nullable|string',
-        'postal_code'             => 'nullable|string',
-        'emp_status'              => 'nullable|string',
-        'qualifications_to_teach' => 'nullable|string', 
+//         // Missing Location & Professional Fields (CRITICAL FOR 422 FIX)
+//         'assigned_location'       => 'required|string',
+//         'city'                    => 'nullable|string',
+//         'province'                => 'nullable|string',
+//         'country'                 => 'nullable|string',
+//         'language'                => 'nullable|string',
+//         'street_address'          => 'nullable|string',
+//         'postal_code'             => 'nullable|string',
+//         'emp_status'              => 'nullable|string',
+//         'qualifications_to_teach' => 'nullable|string', 
         
-        // Document Uploads
-        'doc_criminal_cert'     => 'nullable|file|mimes:pdf,jpg,png|max:2048',
-        'doc_vulnerable_sector' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
-        'doc_driver_abstract'   => 'nullable|file|mimes:pdf,jpg,png|max:2048',
-    ]);
+//         // Document Uploads
+//         'doc_criminal_cert'     => 'nullable|file|mimes:pdf,jpg,png|max:2048',
+//         'doc_vulnerable_sector' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
+//         'doc_driver_abstract'   => 'nullable|file|mimes:pdf,jpg,png|max:2048',
+//     ]);
 
-    if ($validator->fails()) {
-        return response()->json(['errors' => $validator->errors()], 422);
+//     if ($validator->fails()) {
+//         return response()->json(['errors' => $validator->errors()], 422);
+//     }
+
+//     // 2. Start Transaction
+//     return DB::transaction(function () use ($request) {
+        
+//         // A. Handle Profile Image
+//         $profilePath = null;
+//         if ($request->hasFile('profile_picture')) {
+//             $profilePath = $request->file('profile_picture')->store('profiles', 'public');
+//         }
+
+//         // B. Create User
+//         $user = User::create([
+//             'name'     => $request->name,
+//             'email'    => $request->email,
+//             'phone'    => $request->phone,
+//             'password' => Hash::make($request->password),
+//             'role'     => 'instructor',
+//             'status'   => 'active',
+//             'profile_picture' => $profilePath,
+//         ]);
+
+//         // C. Handle Instructor Documents
+//         $docs = [];
+//         foreach (['doc_criminal_cert', 'doc_vulnerable_sector', 'doc_driver_abstract'] as $docField) {
+//             $docs[$docField] = $request->hasFile($docField) 
+//                 ? $request->file($docField)->store('instructor_docs', 'public') 
+//                 : null;
+//         }
+
+//         // D. Create Instructor Profile
+//         $instructor = Instructor::create([
+//             'user_id'                 => $user->id,
+//             'car_id'                  => $request->car_id,
+//             'dob'                     => $request->dob,
+//             'language'                => $request->language,
+//             'country'                 => $request->country,
+//             'city'                    => $request->city,
+//             'province'                => $request->province,
+//             'street_address'          => $request->street_address,
+//             'postal_code'             => $request->postal_code,
+//             'assigned_location'       => $request->assigned_location,
+//             'emp_status'              => $request->emp_status ?? 'active',
+//             'qualifications_to_teach' => $request->qualifications_to_teach, // SAVING NEW COLUMN
+//             'licence_no'              => $request->licence_no,
+//             'inst_license_no'         => $request->inst_license_no,
+//             'licence_expiry'          => $request->licence_expiry,
+//             'doc_criminal_cert'       => $docs['doc_criminal_cert'],
+//             'doc_vulnerable_sector'   => $docs['doc_vulnerable_sector'],
+//             'doc_driver_abstract'     => $docs['doc_driver_abstract'],
+//         ]);
+
+//         return response()->json([
+//             'success' => true,
+//             'message' => 'Instructor and User account created successfully!',
+//             'user'    => $user,
+//             'profile' => $instructor
+//         ], 201);
+//     });
+// }
+
+
+public function store(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                // User Fields
+                'name'            => 'required|string|max:255',
+                'email'           => 'required|email|unique:users,email',
+                'phone'           => 'required|string|unique:users,phone',
+                'password'        => 'required|string|min:8',
+                'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+                
+                // Instructor Fields
+                'car_id'          => 'nullable|exists:cars,id',
+                'dob'             => 'required|date',
+                'licence_no'      => 'required|string|unique:instructors',
+                'inst_license_no' => 'required|string|unique:instructors',
+                'licence_expiry'  => 'required|date',
+                
+                // Location & Professional Fields 
+                'assigned_location'       => 'required|string',
+                'city'                    => 'nullable|string',
+                'province'                => 'nullable|string',
+                'country'                 => 'nullable|string',
+                'language'                => 'nullable|string',
+                'street_address'          => 'nullable|string',
+                'postal_code'             => 'nullable|string',
+                'emp_status'              => 'nullable|string',
+                'qualifications_to_teach' => 'nullable|string', 
+                
+                // Document Uploads
+                'doc_criminal_cert'     => 'nullable|file|mimes:pdf,jpg,png|max:2048',
+                'doc_vulnerable_sector' => 'nullable|file|mimes:pdf,jpg,png|max:2048',
+                'doc_driver_abstract'   => 'nullable|file|mimes:pdf,jpg,png|max:2048',
+            ]);
+
+            // FIX: If validation fails, combine errors into a message string for the frontend
+            if ($validator->fails()) {
+                $errorMessages = implode("\n", $validator->errors()->all());
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessages, // Frontend will now display this exact reason!
+                    'errors'  => $validator->errors()
+                ], 422);
+            }
+
+            // Start Transaction
+            return DB::transaction(function () use ($request) {
+                
+                // A. Handle Profile Image
+                $profilePath = null;
+                if ($request->hasFile('profile_picture')) {
+                    $profilePath = $request->file('profile_picture')->store('profiles', 'public');
+                }
+
+                // B. Create User
+                $user = User::create([
+                    'name'     => $request->name,
+                    'email'    => $request->email,
+                    'phone'    => $request->phone,
+                    'password' => Hash::make($request->password),
+                    'role'     => 'instructor',
+                    'status'   => 'active',
+                    'profile_picture' => $profilePath,
+                ]);
+
+                // C. Handle Instructor Documents
+                $docs = [];
+                foreach (['doc_criminal_cert', 'doc_vulnerable_sector', 'doc_driver_abstract'] as $docField) {
+                    $docs[$docField] = $request->hasFile($docField) 
+                        ? $request->file($docField)->store('instructor_docs', 'public') 
+                        : null;
+                }
+
+                // D. Create Instructor Profile
+                $instructor = Instructor::create([
+                    'user_id'                 => $user->id,
+                    'car_id'                  => $request->car_id,
+                    'dob'                     => $request->dob,
+                    'language'                => $request->language,
+                    'country'                 => $request->country,
+                    'city'                    => $request->city,
+                    'province'                => $request->province,
+                    'street_address'          => $request->street_address,
+                    'postal_code'             => $request->postal_code,
+                    'assigned_location'       => $request->assigned_location,
+                    'emp_status'              => $request->emp_status ?? 'active',
+                    'qualifications_to_teach' => $request->qualifications_to_teach,
+                    'licence_no'              => $request->licence_no,
+                    'inst_license_no'         => $request->inst_license_no,
+                    'licence_expiry'          => $request->licence_expiry,
+                    'doc_criminal_cert'       => $docs['doc_criminal_cert'],
+                    'doc_vulnerable_sector'   => $docs['doc_vulnerable_sector'],
+                    'doc_driver_abstract'     => $docs['doc_driver_abstract'],
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Instructor and User account created successfully!',
+                    'user'    => $user,
+                    'profile' => $instructor
+                ], 201);
+            });
+
+        } catch (\Exception $e) {
+            // Catch any other server/database errors and show the exact issue
+            return response()->json([
+                'success' => false,
+                'message' => 'Server Error: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
-    // 2. Start Transaction
-    return DB::transaction(function () use ($request) {
+    //list all instructor 
+//     public function index()
+//     {
+//         $instructors = Instructor::with(['user', 'car','students.user'])->get();
+//         return response()->json(['success' => true, 'data' => $instructors]);
+//     }
+//     public function show($id)
+// {
+//     // Eager load the 'user' and 'car' relationships to get full details
+//     $instructor = Instructor::with(['user', 'car','students.user'])->find($id);
+
+//     if (!$instructor) {
+//         return response()->json([
+//             'success' => false, 
+//             'message' => 'Instructor not found'
+//         ], 404);
+//     }
+
+//     return response()->json([
+//         'success' => true,
+//         'data'    => $instructor
+//     ]);
+// }
+
+public function index()
+    {
+        $instructors = Instructor::with(['user', 'car','students.user'])->get();
         
-        // A. Handle Profile Image
-        $profilePath = null;
-        if ($request->hasFile('profile_picture')) {
-            $profilePath = $request->file('profile_picture')->store('profiles', 'public');
+        // Dynamically attach enrolment data so the frontend can calculate active/completed
+        $instructors->each(function ($instructor) {
+            $instructor->students->each(function ($student) {
+                $enrolment = \App\Models\Enrolment::where('student_id', $student->id)->latest()->first();
+                
+                $student->progress_percentage = $enrolment ? (float)$enrolment->progress_percentage : 0;
+                $student->paymentStatus = ($enrolment && ($enrolment->balance_due <= 0 || $enrolment->status === 'paid')) ? 'Paid' : 'Due';
+            });
+        });
+
+        return response()->json(['success' => true, 'data' => $instructors]);
+    }
+
+    public function show($id)
+    {
+        // Eager load the 'user' and 'car' relationships to get full details
+        $instructor = Instructor::with(['user', 'car','students.user'])->find($id);
+
+        if (!$instructor) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Instructor not found'
+            ], 404);
         }
 
-        // B. Create User
-        $user = User::create([
-            'name'     => $request->name,
-            'email'    => $request->email,
-            'phone'    => $request->phone,
-            'password' => Hash::make($request->password),
-            'role'     => 'instructor',
-            'status'   => 'active',
-            'profile_picture' => $profilePath,
-        ]);
-
-        // C. Handle Instructor Documents
-        $docs = [];
-        foreach (['doc_criminal_cert', 'doc_vulnerable_sector', 'doc_driver_abstract'] as $docField) {
-            $docs[$docField] = $request->hasFile($docField) 
-                ? $request->file($docField)->store('instructor_docs', 'public') 
-                : null;
-        }
-
-        // D. Create Instructor Profile
-        $instructor = Instructor::create([
-            'user_id'                 => $user->id,
-            'car_id'                  => $request->car_id,
-            'dob'                     => $request->dob,
-            'language'                => $request->language,
-            'country'                 => $request->country,
-            'city'                    => $request->city,
-            'province'                => $request->province,
-            'street_address'          => $request->street_address,
-            'postal_code'             => $request->postal_code,
-            'assigned_location'       => $request->assigned_location,
-            'emp_status'              => $request->emp_status ?? 'active',
-            'qualifications_to_teach' => $request->qualifications_to_teach, // SAVING NEW COLUMN
-            'licence_no'              => $request->licence_no,
-            'inst_license_no'         => $request->inst_license_no,
-            'licence_expiry'          => $request->licence_expiry,
-            'doc_criminal_cert'       => $docs['doc_criminal_cert'],
-            'doc_vulnerable_sector'   => $docs['doc_vulnerable_sector'],
-            'doc_driver_abstract'     => $docs['doc_driver_abstract'],
-        ]);
+        // Dynamically attach enrolment data so the frontend can calculate active/completed
+        $instructor->students->each(function ($student) {
+            $enrolment = \App\Models\Enrolment::where('student_id', $student->id)->latest()->first();
+            
+            $student->progress_percentage = $enrolment ? (float)$enrolment->progress_percentage : 0;
+            $student->paymentStatus = ($enrolment && ($enrolment->balance_due <= 0 || $enrolment->status === 'paid')) ? 'Paid' : 'Due';
+        });
 
         return response()->json([
             'success' => true,
-            'message' => 'Instructor and User account created successfully!',
-            'user'    => $user,
-            'profile' => $instructor
-        ], 201);
-    });
-}
-
-    //list all instructor 
-    public function index()
-    {
-        $instructors = Instructor::with(['user', 'car','students.user'])->get();
-        return response()->json(['success' => true, 'data' => $instructors]);
+            'data'    => $instructor
+        ]);
     }
-    public function show($id)
-{
-    // Eager load the 'user' and 'car' relationships to get full details
-    $instructor = Instructor::with(['user', 'car','students.user'])->find($id);
-
-    if (!$instructor) {
-        return response()->json([
-            'success' => false, 
-            'message' => 'Instructor not found'
-        ], 404);
-    }
-
-    return response()->json([
-        'success' => true,
-        'data'    => $instructor
-    ]);
-}
-
-   
 
     public function update(Request $request, $id)
 {

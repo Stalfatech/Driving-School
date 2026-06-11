@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { 
@@ -10,7 +9,7 @@ import {
   CalendarIcon, UserCircle, Download, Edit, Trash2, MessageCircle, X, Save
 } from "lucide-react";
 
-const API_BASE = "http://localhost:8000/api";
+const API_BASE = "http://127.0.0.1:8000/api";
 
 export default function StudentDetailView({ studentId, onClose }) {
   const [data, setData] = useState(null);
@@ -19,9 +18,16 @@ export default function StudentDetailView({ studentId, onClose }) {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("Overview");
   const [scheduleTab, setScheduleTab] = useState("attendance");
+  
+  // --- Edit Form States ---
   const [isEditing, setIsEditing] = useState(false);
   const [editFormData, setEditFormData] = useState({});
   const [editLoading, setEditLoading] = useState(false);
+  const [errors, setErrors] = useState({}); 
+  
+  // --- Global UI States ---
+  const [notification, setNotification] = useState(null); // Custom alert banner
+  const [confirmDialog, setConfirmDialog] = useState(null); // Custom confirm modal
 
   const [payLoading, setPayLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -83,9 +89,18 @@ export default function StudentDetailView({ studentId, onClose }) {
     if (studentId) fetchDetails();
   }, [studentId]);
 
+  // --- Premium UI Helpers ---
+  const showNotification = (type, message) => {
+    setNotification({ type, message });
+    if (type !== 'success') {
+      setTimeout(() => setNotification(null), 5000);
+    }
+  };
+
   const handlePaymentSubmit = async (e) => {
     e.preventDefault();
     setPayLoading(true);
+    setNotification(null);
     try {
       const token = localStorage.getItem('access_token');
       await axios.post(`${API_BASE}/payments`, {
@@ -106,16 +121,28 @@ export default function StudentDetailView({ studentId, onClose }) {
       });
       
       await fetchDetails();
-      alert("Payment recorded successfully!");
+      showNotification('success', 'Payment recorded successfully!');
     } catch (err) {
-      alert("Error recording payment: " + (err.response?.data?.message || err.message));
+      showNotification('error', "Error recording payment: " + (err.response?.data?.message || err.message));
     } finally {
       setPayLoading(false);
     }
   };
 
-  const handleBlockToggle = async (action) => {
-    if (!confirm(`Are you sure you want to ${action} this student?`)) return;
+  // Replaces the old native browser confirm() box
+  const handleBlockToggle = (action) => {
+    setConfirmDialog({
+      title: `${action === 'block' ? 'Block' : 'Unblock'} Student`,
+      message: `Are you sure you want to ${action} this student?`,
+      type: action === 'block' ? 'danger' : 'success',
+      actionText: action === 'block' ? 'Yes, Block' : 'Yes, Unblock',
+      onConfirm: () => executeBlockToggle(action)
+    });
+  };
+
+  const executeBlockToggle = async (action) => {
+    setConfirmDialog(null);
+    setNotification(null);
     try {
       const token = localStorage.getItem('access_token');
       const endpoint = action === 'block' ? 'block' : 'unblock';
@@ -123,29 +150,15 @@ export default function StudentDetailView({ studentId, onClose }) {
         headers: { Authorization: `Bearer ${token}` }
       });
       await fetchDetails();
-      alert(`Student ${action}ed successfully!`);
+      
+      // Request mapping: Red for Block, Green for Unblock
+      if (action === 'block') {
+        showNotification('error', 'Student blocked successfully!');
+      } else {
+        showNotification('success', 'Student unblocked successfully!');
+      }
     } catch (err) {
-      alert(`Failed to ${action} student`);
-    }
-  };
-
-  const handleEditSubmit = async (e) => {
-    e.preventDefault();
-    if (editLoading) return;
-    setEditLoading(true);
-    
-    try {
-      const token = localStorage.getItem('access_token');
-      await axios.put(`${API_BASE}/students/${studentId}`, editFormData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      await fetchDetails();
-      setIsEditing(false);
-      alert("Student information updated successfully!");
-    } catch (err) {
-      alert("Failed to update student information: " + (err.response?.data?.error || err.message));
-    } finally {
-      setEditLoading(false);
+      showNotification('error', `Failed to ${action} student`);
     }
   };
 
@@ -155,14 +168,69 @@ export default function StudentDetailView({ studentId, onClose }) {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: null }));
+    }
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    setErrors({});
+    setNotification(null);
+
+    let frontendErrors = {};
+    if (!editFormData.name?.trim()) frontendErrors.name = ["Full name is required."];
+    
+    if (!editFormData.email?.trim()) {
+      frontendErrors.email = ["Email address is required."];
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(editFormData.email)) {
+      frontendErrors.email = ["Please enter a valid email format."];
+    }
+
+    if (Object.keys(frontendErrors).length > 0) {
+      setErrors(frontendErrors);
+      showNotification('warning', 'Please fix the highlighted validation errors before saving.');
+      return;
+    }
+
+    setEditLoading(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      await axios.put(`${API_BASE}/students/${studentId}`, editFormData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      await fetchDetails();
+      showNotification('success', 'Student information updated successfully!');
+      setTimeout(() => setIsEditing(false), 1500);
+    } catch (err) {
+      console.error("Update error:", err);
+      if (err.response?.status === 422) {
+        setErrors(err.response.data.errors || {});
+        showNotification('warning', 'Please fix the highlighted validation errors.');
+      } else if (err.response?.status >= 500) {
+        showNotification('error', 'A server error occurred. Please try again later.');
+      } else {
+        showNotification('error', err.response?.data?.error || err.response?.data?.message || "Failed to update student information.");
+      }
+    } finally {
+      setEditLoading(false);
+    }
   };
 
   const handleOpenEdit = () => {
     if (data && rawStudent) {
       setEditFormData(extractEditableFields(data, rawStudent));
     }
+    setErrors({});
+    setNotification(null);
     setIsEditing(true);
   };
+
+  const getInputClass = (fieldName) => `w-full p-3 sm:p-3.5 rounded-xl border bg-slate-50 dark:bg-slate-800 font-medium text-sm sm:text-base text-slate-900 dark:text-white focus:outline-none focus:ring-1 disabled:opacity-50 disabled:cursor-not-allowed transition-all ${
+    errors[fieldName] 
+      ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' 
+      : 'border-slate-200 dark:border-slate-700 focus:border-teal-400 focus:ring-teal-200'
+  }`;
 
   if (loading) return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white dark:bg-slate-950 backdrop-blur-sm">
@@ -183,12 +251,64 @@ export default function StudentDetailView({ studentId, onClose }) {
     </div>
   );
 
-  // Edit Modal
+  // --- REUSABLE UI BLOCKS ---
+  const NotificationBanner = () => {
+    if (!notification) return null;
+    return (
+      <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-[300] px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-4 fade-in duration-300 ${
+        notification.type === 'success' ? 'bg-emerald-500 text-white' : 
+        notification.type === 'warning' ? 'bg-amber-500 text-white' : 
+        'bg-rose-500 text-white'
+      }`}>
+        {notification.type === 'success' ? <Check size={18} /> : <AlertCircle size={18} />}
+        <span className="text-sm font-bold">{notification.message}</span>
+        {notification.type !== 'success' && (
+          <button onClick={() => setNotification(null)} className="ml-2 hover:opacity-75"><X size={16}/></button>
+        )}
+      </div>
+    );
+  };
+
+  const ConfirmDialogOverlay = () => {
+    if (!confirmDialog) return null;
+    return (
+      <div className="fixed inset-0 z-[400] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-slate-200 dark:border-slate-800 animate-in zoom-in-95">
+          <h3 className={`text-lg font-bold flex items-center gap-2 ${confirmDialog.type === 'danger' ? 'text-rose-600' : 'text-emerald-600'}`}>
+            <AlertCircle size={20} /> {confirmDialog.title}
+          </h3>
+          <p className="text-slate-600 dark:text-slate-400 mt-2 text-sm">
+            {confirmDialog.message}
+          </p>
+          <div className="flex gap-3 mt-6">
+            <button 
+              onClick={() => setConfirmDialog(null)}
+              className="flex-1 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-semibold transition-colors"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={confirmDialog.onConfirm}
+              className={`flex-1 px-4 py-2 text-white rounded-lg text-sm font-semibold transition-colors ${
+                confirmDialog.type === 'danger' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-600 hover:bg-emerald-700'
+              }`}
+            >
+              {confirmDialog.actionText}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // --- Edit Modal View ---
   if (isEditing) {
     return (
       <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-        <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden my-8">
+        <div className="relative bg-white dark:bg-slate-900 w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden my-8">
           
+          <NotificationBanner />
+
           <div className="p-4 sm:p-6 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
             <div>
               <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">Edit Student Information</h2>
@@ -199,11 +319,11 @@ export default function StudentDetailView({ studentId, onClose }) {
               disabled={editLoading}
               className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50"
             >
-              <X size={20} className="text-slate-500 dark:text-slate-400" />
+              <X size={20} className="text-slate-500 dark:text-slate-400 hover:text-red-500" />
             </button>
           </div>
 
-          <form onSubmit={handleEditSubmit} className="p-4 sm:p-6 max-h-[70vh] overflow-y-auto">
+          <form onSubmit={handleEditSubmit} noValidate className="p-4 sm:p-6 max-h-[70vh] overflow-y-auto">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
               
               <div className="col-span-2">
@@ -211,29 +331,33 @@ export default function StudentDetailView({ studentId, onClose }) {
               </div>
               
               <div className="space-y-1.5">
-                <label className="text-xs sm:text-sm font-mono text-slate-500 dark:text-slate-400 uppercase">Full Name</label>
+                <label className="text-xs sm:text-sm font-mono text-slate-500 dark:text-slate-400 uppercase flex items-center gap-1">
+                  Full Name {!editFormData.name && <span className="text-red-500 animate-pulse">*</span>}
+                </label>
                 <input 
                   type="text" 
                   name="name" 
                   value={editFormData.name} 
                   onChange={handleInputChange}
                   disabled={editLoading}
-                  className="w-full p-3 sm:p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium text-sm sm:text-base text-slate-900 dark:text-white focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-200 disabled:opacity-50 disabled:cursor-not-allowed" 
-                  required 
+                  className={getInputClass('name')}
                 />
+                {errors.name && <p className="text-[10px] sm:text-xs text-red-500 font-['Sora'] font-medium mt-1 ml-1">{errors.name[0]}</p>}
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs sm:text-sm font-mono text-slate-500 dark:text-slate-400 uppercase">Email Address</label>
+                <label className="text-xs sm:text-sm font-mono text-slate-500 dark:text-slate-400 uppercase flex items-center gap-1">
+                  Email Address {!editFormData.email && <span className="text-red-500 animate-pulse">*</span>}
+                </label>
                 <input 
                   type="email" 
                   name="email" 
                   value={editFormData.email} 
                   onChange={handleInputChange}
                   disabled={editLoading}
-                  className="w-full p-3 sm:p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium text-sm sm:text-base text-slate-900 dark:text-white focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-200 disabled:opacity-50 disabled:cursor-not-allowed" 
-                  required 
+                  className={getInputClass('email')}
                 />
+                {errors.email && <p className="text-[10px] sm:text-xs text-red-500 font-['Sora'] font-medium mt-1 ml-1">{errors.email[0]}</p>}
               </div>
 
               <div className="space-y-1.5">
@@ -244,8 +368,9 @@ export default function StudentDetailView({ studentId, onClose }) {
                   value={editFormData.phone} 
                   onChange={handleInputChange}
                   disabled={editLoading}
-                  className="w-full p-3 sm:p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium text-sm sm:text-base text-slate-900 dark:text-white focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-200 disabled:opacity-50 disabled:cursor-not-allowed" 
+                  className={getInputClass('phone')}
                 />
+                {errors.phone && <p className="text-[10px] sm:text-xs text-red-500 font-['Sora'] font-medium mt-1 ml-1">{errors.phone[0]}</p>}
               </div>
 
               <div className="space-y-1.5">
@@ -256,8 +381,9 @@ export default function StudentDetailView({ studentId, onClose }) {
                   value={editFormData.permit_number} 
                   onChange={handleInputChange}
                   disabled={editLoading}
-                  className="w-full p-3 sm:p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium text-sm sm:text-base text-slate-900 dark:text-white focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-200 disabled:opacity-50 disabled:cursor-not-allowed" 
+                  className={getInputClass('permit_number')}
                 />
+                {errors.permit_number && <p className="text-[10px] sm:text-xs text-red-500 font-['Sora'] font-medium mt-1 ml-1">{errors.permit_number[0]}</p>}
               </div>
 
               <div className="col-span-2 mt-2">
@@ -272,8 +398,9 @@ export default function StudentDetailView({ studentId, onClose }) {
                   value={editFormData.street_address} 
                   onChange={handleInputChange}
                   disabled={editLoading}
-                  className="w-full p-3 sm:p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium text-sm sm:text-base text-slate-900 dark:text-white focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-200 disabled:opacity-50 disabled:cursor-not-allowed" 
+                  className={getInputClass('street_address')}
                 />
+                {errors.street_address && <p className="text-[10px] sm:text-xs text-red-500 font-['Sora'] font-medium mt-1 ml-1">{errors.street_address[0]}</p>}
               </div>
 
               <div className="space-y-1.5">
@@ -284,8 +411,9 @@ export default function StudentDetailView({ studentId, onClose }) {
                   value={editFormData.appartment} 
                   onChange={handleInputChange}
                   disabled={editLoading}
-                  className="w-full p-3 sm:p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium text-sm sm:text-base text-slate-900 dark:text-white focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-200 disabled:opacity-50 disabled:cursor-not-allowed" 
+                  className={getInputClass('appartment')}
                 />
+                {errors.appartment && <p className="text-[10px] sm:text-xs text-red-500 font-['Sora'] font-medium mt-1 ml-1">{errors.appartment[0]}</p>}
               </div>
 
               <div className="space-y-1.5">
@@ -296,8 +424,9 @@ export default function StudentDetailView({ studentId, onClose }) {
                   value={editFormData.city} 
                   onChange={handleInputChange}
                   disabled={editLoading}
-                  className="w-full p-3 sm:p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium text-sm sm:text-base text-slate-900 dark:text-white focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-200 disabled:opacity-50 disabled:cursor-not-allowed" 
+                  className={getInputClass('city')}
                 />
+                {errors.city && <p className="text-[10px] sm:text-xs text-red-500 font-['Sora'] font-medium mt-1 ml-1">{errors.city[0]}</p>}
               </div>
 
               <div className="space-y-1.5">
@@ -308,8 +437,9 @@ export default function StudentDetailView({ studentId, onClose }) {
                   value={editFormData.postal_code} 
                   onChange={handleInputChange}
                   disabled={editLoading}
-                  className="w-full p-3 sm:p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium text-sm sm:text-base text-slate-900 dark:text-white focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-200 disabled:opacity-50 disabled:cursor-not-allowed" 
+                  className={getInputClass('postal_code')}
                 />
+                {errors.postal_code && <p className="text-[10px] sm:text-xs text-red-500 font-['Sora'] font-medium mt-1 ml-1">{errors.postal_code[0]}</p>}
               </div>
 
               <div className="space-y-1.5">
@@ -320,8 +450,9 @@ export default function StudentDetailView({ studentId, onClose }) {
                   value={editFormData.state} 
                   onChange={handleInputChange}
                   disabled={editLoading}
-                  className="w-full p-3 sm:p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium text-sm sm:text-base text-slate-900 dark:text-white focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-200 disabled:opacity-50 disabled:cursor-not-allowed" 
+                  className={getInputClass('state')}
                 />
+                {errors.state && <p className="text-[10px] sm:text-xs text-red-500 font-['Sora'] font-medium mt-1 ml-1">{errors.state[0]}</p>}
               </div>
 
               <div className="space-y-1.5">
@@ -332,8 +463,9 @@ export default function StudentDetailView({ studentId, onClose }) {
                   value={editFormData.country} 
                   onChange={handleInputChange}
                   disabled={editLoading}
-                  className="w-full p-3 sm:p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium text-sm sm:text-base text-slate-900 dark:text-white focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-200 disabled:opacity-50 disabled:cursor-not-allowed" 
+                  className={getInputClass('country')}
                 />
+                {errors.country && <p className="text-[10px] sm:text-xs text-red-500 font-['Sora'] font-medium mt-1 ml-1">{errors.country[0]}</p>}
               </div>
 
               <div className="col-span-2 mt-2">
@@ -348,8 +480,9 @@ export default function StudentDetailView({ studentId, onClose }) {
                   value={editFormData.parent_name} 
                   onChange={handleInputChange}
                   disabled={editLoading}
-                  className="w-full p-3 sm:p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium text-sm sm:text-base text-slate-900 dark:text-white focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-200 disabled:opacity-50 disabled:cursor-not-allowed" 
+                  className={getInputClass('parent_name')}
                 />
+                {errors.parent_name && <p className="text-[10px] sm:text-xs text-red-500 font-['Sora'] font-medium mt-1 ml-1">{errors.parent_name[0]}</p>}
               </div>
 
               <div className="space-y-1.5">
@@ -360,8 +493,9 @@ export default function StudentDetailView({ studentId, onClose }) {
                   value={editFormData.parent_email} 
                   onChange={handleInputChange}
                   disabled={editLoading}
-                  className="w-full p-3 sm:p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium text-sm sm:text-base text-slate-900 dark:text-white focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-200 disabled:opacity-50 disabled:cursor-not-allowed" 
+                  className={getInputClass('parent_email')}
                 />
+                {errors.parent_email && <p className="text-[10px] sm:text-xs text-red-500 font-['Sora'] font-medium mt-1 ml-1">{errors.parent_email[0]}</p>}
               </div>
 
               <div className="space-y-1.5">
@@ -372,8 +506,9 @@ export default function StudentDetailView({ studentId, onClose }) {
                   value={editFormData.parent_phone} 
                   onChange={handleInputChange}
                   disabled={editLoading}
-                  className="w-full p-3 sm:p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium text-sm sm:text-base text-slate-900 dark:text-white focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-200 disabled:opacity-50 disabled:cursor-not-allowed" 
+                  className={getInputClass('parent_phone')}
                 />
+                {errors.parent_phone && <p className="text-[10px] sm:text-xs text-red-500 font-['Sora'] font-medium mt-1 ml-1">{errors.parent_phone[0]}</p>}
               </div>
 
               <div className="col-span-2 mt-2">
@@ -384,8 +519,9 @@ export default function StudentDetailView({ studentId, onClose }) {
                   onChange={handleInputChange} 
                   rows="2"
                   disabled={editLoading}
-                  className="w-full p-3 sm:p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium text-sm sm:text-base text-slate-900 dark:text-white mt-2 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-200 disabled:opacity-50 disabled:cursor-not-allowed" 
+                  className={`${getInputClass('additional_notes')} mt-2`}
                 />
+                {errors.additional_notes && <p className="text-[10px] sm:text-xs text-red-500 font-['Sora'] font-medium mt-1 ml-1">{errors.additional_notes[0]}</p>}
               </div>
             </div>
 
@@ -401,7 +537,7 @@ export default function StudentDetailView({ studentId, onClose }) {
               <button 
                 type="submit"
                 disabled={editLoading}
-                className="px-5 sm:px-7 py-2.5 bg-teal-600 text-white rounded-xl font-semibold text-sm sm:text-base hover:bg-teal-700 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-5 sm:px-7 py-2.5 bg-teal-600 text-white rounded-xl font-semibold text-sm sm:text-base hover:bg-teal-700 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-teal-500/20"
               >
                 {editLoading ? (
                   <>
@@ -422,12 +558,15 @@ export default function StudentDetailView({ studentId, onClose }) {
     );
   }
 
-  // Main View (when not editing)
+  // --- Main View (when not editing) ---
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 dark:bg-black/70 backdrop-blur-sm p-3 sm:p-4 md:p-8 overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-6xl min-h-[90vh] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col my-auto">
+      <div className="relative bg-white dark:bg-slate-900 w-full max-w-6xl min-h-[90vh] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col my-auto">
         
-        <button onClick={onClose} className="absolute top-4 right-4 sm:top-6 sm:right-6 z-20 w-8 h-8 sm:w-10 sm:h-10 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-xl flex items-center justify-center transition-all">
+        <ConfirmDialogOverlay />
+        <NotificationBanner />
+
+        <button onClick={onClose} className="absolute top-4 right-4 sm:top-0 sm:right-0 z-20 w-8 h-8 sm:w-10 sm:h-10 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-red-500 rounded-xl flex items-center justify-center transition-all">
           ✕
         </button>
 
@@ -439,11 +578,14 @@ export default function StudentDetailView({ studentId, onClose }) {
             
             <div className="flex-1 text-center lg:text-left">
               <div className="flex flex-wrap justify-center lg:justify-start gap-2 mb-3 sm:mb-4">
-                <span className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-mono font-bold uppercase tracking-wider border ${
-                  data.paymentStatus === 'Paid' 
-                    ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800' 
-                    : 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800'
-                }`}>{data.paymentStatus}</span>
+                  <span className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-mono font-bold uppercase tracking-wider border ${
+                    data.paymentStatus === 'Paid' 
+                      ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800' 
+                      : data.paymentStatus === 'Deposit Paid'
+                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800'
+                      : 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800'
+                  }`}>{data.paymentStatus}</span>
+
                 <span className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-mono font-bold uppercase tracking-wider border ${
                   data.status === 'active' 
                     ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'

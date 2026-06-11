@@ -490,4 +490,355 @@ public function updateStudentProgress(Request $request, $studentId)
 }
 
 
+
+
+// Add to InstructorAssignmentController.php
+public function checkSlotConflict(Request $request)
+{
+    $request->validate([
+        'schedule_id' => 'required',
+        'date'        => 'required|date',
+        'start_time'  => 'required',
+        'end_time'    => 'required',
+    ]);
+
+    $hasOverlap = ScheduleAssignment::where('schedule_id', $request->schedule_id)
+        ->where('date', $request->date)
+        ->where(function ($query) use ($request) {
+            $query->where('start_time', '<', $request->end_time)
+                  ->where('end_time', '>', $request->start_time);
+        })
+        ->exists();
+
+    return response()->json(['has_conflict' => $hasOverlap]);
+}
+
+/**
+ * Check for instructor schedule conflicts (for instructor side)
+ */
+public function checkInstructorConflict(Request $request)
+{
+    $request->validate([
+        'schedule_id' => 'required|exists:schedules,id',
+        'date'        => 'required|date',
+        'start_time'  => 'required',
+        'end_time'    => 'required',
+    ]);
+
+    $instructorId = $this->getInstructorId();
+    
+    if (!$instructorId) {
+        return response()->json(['message' => 'Instructor profile not found.'], 404);
+    }
+
+    $assignmentId = $request->input('assignment_id', null);
+    
+    $query = ScheduleAssignment::where('schedule_id', $request->schedule_id)
+        ->where('instructor_id', $instructorId)
+        ->where('date', $request->date)
+        ->where(function ($query) use ($request) {
+            $query->where(function ($q) use ($request) {
+                $q->where('start_time', '<', $request->end_time)
+                  ->where('end_time', '>', $request->start_time);
+            });
+        });
+    
+    // Exclude current assignment when editing
+    if ($assignmentId) {
+        $query->where('id', '!=', $assignmentId);
+    }
+    
+    $hasOverlap = $query->exists();
+
+    return response()->json([
+        'success' => true,
+        'has_conflict' => $hasOverlap,
+        'message' => $hasOverlap ? 'Time slot conflicts with an existing session' : 'Time slot is available'
+    ]);
+}
+/**
+ * Get students eligible for tests (assigned to this instructor)
+ */
+/**
+ * Get students eligible for tests (assigned to this instructor)
+ */
+public function getTestEligibleStudents()
+{
+    $instructorId = $this->getInstructorId();
+    
+    if (!$instructorId) {
+        return response()->json(['message' => 'Instructor profile not found.'], 404);
+    }
+
+    $students = Student::with(['user', 'package'])
+        ->where('instructor_id', $instructorId)
+        ->get()
+        ->map(function ($student) {
+            // Build full address
+            $addressParts = [];
+            if ($student->street_address) $addressParts[] = $student->street_address;
+            if ($student->city) $addressParts[] = $student->city;
+            if ($student->province) $addressParts[] = $student->province;
+            if ($student->postal_code) $addressParts[] = $student->postal_code;
+            $fullAddress = !empty($addressParts) ? implode(', ', $addressParts) : 'Address not set';
+            
+            // Get previous test attempts for this student
+            $testAttempts = ScheduleAssignment::where('student_id', $student->id)
+                ->where('is_test', true)
+                ->where('test_type', '!=', null)
+                ->count();
+            
+            return [
+                'id' => $student->id,
+                'name' => $student->user->name ?? 'Unknown',
+                'email' => $student->user->email ?? '',
+                'phone' => $student->user->phone ?? '',
+                'address' => $fullAddress,
+                'street_address' => $student->street_address ?? '',
+                'city' => $student->city ?? '',
+                'province' => $student->province ?? '',
+                'postal_code' => $student->postal_code ?? '',
+                'test_attempts_count' => $testAttempts,
+                'package' => $student->package->package_name ?? 'No Package'
+            ];
+        });
+
+    return response()->json([
+        'success' => true,
+        'data' => $students
+    ]);
+}
+
+/**
+ * Schedule a test for a student
+ */
+public function scheduleTest(Request $request)
+{
+    $request->validate([
+        'student_id' => 'required|exists:students,id',
+        'test_type' => 'required|string|in:Road Test,Written Test,Parking Test,Highway Test',
+        'date' => 'required|date',
+        'start_time' => 'required',
+        'end_time' => 'required',
+    ]);
+
+    $instructorId = $this->getInstructorId();
+
+    if (!$instructorId) {
+        return response()->json(['message' => 'Instructor profile not found.'], 404);
+    }
+
+    // Get the current duty shift
+    $schedule = Schedule::where('instructor_id', $instructorId)
+        ->where('start_date', '<=', $request->date)
+        ->where('end_date', '>=', $request->date)
+        ->first();
+
+    if (!$schedule) {
+        return response()->json(['message' => 'No active duty shift found for this date.'], 422);
+    }
+
+    // Check for conflicts
+    $conflict = ScheduleAssignment::where('schedule_id', $schedule->id)
+        ->where('date', $request->date)
+        ->where(function($q) use ($request) {
+            $q->where('start_time', '<', $request->end_time)
+              ->where('end_time', '>', $request->start_time);
+        })
+        ->exists();
+
+    if ($conflict) {
+        return response()->json(['message' => 'Time slot conflict! Please choose a different time.'], 422);
+    }
+
+    // Get attempt number
+    $attemptNumber = ScheduleAssignment::where('student_id', $request->student_id)
+        ->where('is_test', true)
+        ->where('test_type', $request->test_type)
+        ->count() + 1;
+
+    // Create test assignment
+    $assignment = ScheduleAssignment::create([
+        'schedule_id' => $schedule->id,
+        'student_id' => $request->student_id,
+        'instructor_id' => $instructorId,
+        'date' => $request->date,
+        'start_time' => $request->start_time,
+        'end_time' => $request->end_time,
+        'student_location' => $request->pickup_location ?? 'Test Center',
+        'is_test' => true,
+        'test_type' => $request->test_type,
+        'test_attempt' => $attemptNumber
+    ]);
+
+    // Send notification to student
+    $student = Student::with('user')->find($request->student_id);
+    $instructor = Instructor::with('user')->find($instructorId);
+
+    if ($student && $student->user) {
+        $data = [
+            'student_name' => $student->user->name,
+            'instructor_name' => $instructor->user->name ?? 'Your Instructor',
+            'date' => $assignment->date,
+            'time' => Carbon::parse($assignment->start_time)->format('h:i A') . ' - ' . Carbon::parse($assignment->end_time)->format('h:i A'),
+            'test_type' => $request->test_type,
+            'pickup_location' => $assignment->student_location ?? 'Test Center',
+            'topic' => $request->test_type . ' (Attempt #' . $attemptNumber . ')',
+        ];
+
+        \App\Services\NotificationService::send(
+            'student_new_assignment',
+            $student->user->email,
+            $data,
+            $student->user,
+            true
+        );
+    }
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Test scheduled successfully!',
+        'data' => $assignment
+    ]);
+}
+
+/**
+ * Save test results (after marking present)
+ */
+public function saveTestResult(Request $request, $assignmentId)
+{
+    $request->validate([
+        'score' => 'required|integer|min:0|max:100',
+        'result' => 'required|in:Pass,Fail',
+        'remarks' => 'required|string|min:5'
+    ]);
+
+    $assignment = ScheduleAssignment::findOrFail($assignmentId);
+    
+    // Verify instructor owns this
+    $instructorId = $this->getInstructorId();
+    if ($assignment->instructor_id !== $instructorId) {
+        return response()->json(['message' => 'Unauthorized'], 403);
+    }
+
+    // Update test results on assignment
+    $assignment->update([
+        'test_score' => $request->score,
+        'test_result' => $request->result
+    ]);
+
+    // Create/update attendance as present
+    Attendance::updateOrCreate(
+        ['assignment_id' => $assignment->id],
+        ['status' => 'present', 'marked_at' => now()]
+    );
+
+    // Save evaluation to TestEvaluation table
+    $evaluation = TestEvaluation::updateOrCreate(
+        ['assignment_id' => $assignment->id],
+        [
+            'test_type' => $assignment->test_type ?? 'Driving Test',
+            'score' => $request->score,
+            'instructor_remarks' => $request->remarks,
+            'student_reply' => null
+        ]
+    );
+
+    // Send notification to student about test result
+    $student = Student::with('user')->find($assignment->student_id);
+    if ($student && $student->user) {
+        $data = [
+            'student_name' => $student->user->name,
+            'test_type' => $assignment->test_type,
+            'attempt_number' => $assignment->test_attempt ?? 1,
+            'result' => $request->result,
+            'score' => $request->score,
+            'remarks' => $request->remarks
+        ];
+
+        \App\Services\NotificationService::send(
+            'test_result_available',
+            $student->user->email,
+            $data,
+            $student->user,
+            true
+        );
+    }
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Test results saved successfully!',
+        'data' => [
+            'assignment' => $assignment,
+            'evaluation' => $evaluation
+        ]
+    ]);
+}
+
+/**
+ * Get student's test history (for instructor view)
+ */
+public function getStudentTestHistory($studentId)
+{
+    $instructorId = $this->getInstructorId();
+
+    $testHistory = ScheduleAssignment::where('student_id', $studentId)
+        ->where('instructor_id', $instructorId)
+        ->where('is_test', true)
+        ->orderBy('date', 'desc')
+        ->orderBy('test_attempt', 'desc')
+        ->get()
+        ->map(function ($test) {
+            return [
+                'id' => $test->id,
+                'test_type' => $test->test_type,
+                'attempt_number' => $test->test_attempt,
+                'date' => $test->date,
+                'start_time' => $test->start_time,
+                'end_time' => $test->end_time,
+                'result' => $test->test_result,
+                'score' => $test->test_score,
+                'remarks' => $test->evaluation?->instructor_remarks,
+                'status' => $test->attendance ? 'completed' : 'scheduled'
+            ];
+        });
+
+    return response()->json([
+        'success' => true,
+        'data' => $testHistory
+    ]);
+}
+
+/**
+ * Get all test sessions for instructor (for Tests tab)
+ */
+public function getTestSessions(Request $request)
+{
+    $instructorId = $this->getInstructorId();
+    
+    $query = ScheduleAssignment::where('instructor_id', $instructorId)
+        ->where('is_test', true)
+        ->with(['student.user', 'attendance', 'evaluation']);
+
+    // Filter by status
+    if ($request->has('status')) {
+        if ($request->status === 'upcoming') {
+            $query->where('date', '>=', now()->toDateString())
+                  ->whereDoesntHave('attendance');
+        } elseif ($request->status === 'completed') {
+            $query->whereHas('attendance');
+        } elseif ($request->status === 'pending') {
+            $query->where('date', '<', now()->toDateString())
+                  ->whereDoesntHave('attendance');
+        }
+    }
+
+    $tests = $query->orderBy('date', 'asc')->get();
+
+    return response()->json([
+        'success' => true,
+        'data' => $tests
+    ]);
+}
+
 }

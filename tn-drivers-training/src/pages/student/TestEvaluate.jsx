@@ -331,66 +331,68 @@ const TestEvaluationPage = () => {
             </div>
 
             {/* Desktop Table */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-50 dark:bg-slate-800/50">
-                  <tr>
-                    {['Date', 'Test Type', 'Status', 'Marked At', 'Instructor'].map(h => (
-                      <th key={h} className="px-5 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {attendances.map((record) => (
-                    <tr key={record.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                      <td className="px-5 py-3 text-sm text-slate-700 dark:text-slate-300">{formatDate(record.assignment.date)}</td>
-                      <td className="px-5 py-3 text-sm text-slate-700 dark:text-slate-300">{record.assignment.test_evaluation?.test_type || 'N/A'}</td>
-                      <td className="px-5 py-3">
-                        <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-xs font-bold capitalize">
-                          {record.status}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-sm text-slate-600 dark:text-slate-400">{formatDateTime(record.marked_at)}</td>
-                      <td className="px-5 py-3 text-sm text-slate-700 dark:text-slate-300">{record.assignment.instructor.name}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+<div className="hidden md:block overflow-x-auto">
+  <table className="w-full">
+    <thead className="bg-slate-50 dark:bg-slate-800/50">
+      <tr>
+        <th className="px-5 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Date</th>
+        <th className="px-5 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Test Type</th>
+        <th className="px-5 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
+        <th className="px-5 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Marked At</th>
+        <th className="px-5 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Instructor</th>
+      </tr>
+    </thead>
+    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+      {attendances.map((record) => (
+        <tr key={record.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+          <td className="px-5 py-3 text-sm text-slate-700 dark:text-slate-300">{formatDate(record.lesson?.date)}</td>
+          <td className="px-5 py-3 text-sm text-slate-700 dark:text-slate-300">{record.lesson?.type || 'N/A'}</td>
+          <td className="px-5 py-3">
+            <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-xs font-bold capitalize">
+              {record.attendance_status}
+            </span>
+          </td>
+          <td className="px-5 py-3 text-sm text-slate-600 dark:text-slate-400">{formatDateTime(record.marked_at)}</td>
+          <td className="px-5 py-3 text-sm text-slate-700 dark:text-slate-300">{record.instructor?.name}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
 
-            {/* Mobile Cards */}
-            <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
-              {attendances.map((record) => (
-                <div key={record.id} className="p-4 space-y-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-sm font-semibold text-slate-800 dark:text-white">
-                          {record.assignment.test_evaluation?.test_type || 'N/A'}
-                        </h3>
-                        <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-xs font-bold capitalize">
-                          {record.status}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 mt-2 text-xs text-slate-500 dark:text-slate-400">
-                        <span className="flex items-center gap-1"><Calendar size={10} />{formatDate(record.assignment.date)}</span>
-                        <span className="flex items-center gap-1"><Clock size={10} />{record.assignment.start_time}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div className="bg-slate-100 dark:bg-slate-800/50 p-2 rounded-lg">
-                      <span className="text-slate-500 dark:text-slate-400 block mb-1">Marked At</span>
-                      <p className="text-slate-700 dark:text-slate-300 font-medium">{formatDateTime(record.marked_at)}</p>
-                    </div>
-                    <div className="bg-slate-100 dark:bg-slate-800/50 p-2 rounded-lg">
-                      <span className="text-slate-500 dark:text-slate-400 block mb-1">Instructor</span>
-                      <p className="text-slate-700 dark:text-slate-300 font-medium">{record.assignment.instructor.name}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+{/* Mobile Cards */}
+<div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+  {attendances.map((record) => (
+    <div key={record.id} className="p-4 space-y-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+      <div className="flex justify-between items-start">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-sm font-semibold text-slate-800 dark:text-white">
+              {record.lesson?.type || 'N/A'}
+            </h3>
+            <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-xs font-bold capitalize">
+              {record.attendance_status}
+            </span>
+          </div>
+          <div className="flex items-center gap-3 mt-2 text-xs text-slate-500 dark:text-slate-400">
+            <span className="flex items-center gap-1"><Calendar size={10} />{formatDate(record.lesson?.date)}</span>
+            <span className="flex items-center gap-1"><Clock size={10} />{record.lesson?.start_time}</span>
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3 text-xs">
+        <div className="bg-slate-100 dark:bg-slate-800/50 p-2 rounded-lg">
+          <span className="text-slate-500 dark:text-slate-400 block mb-1">Marked At</span>
+          <p className="text-slate-700 dark:text-slate-300 font-medium">{formatDateTime(record.marked_at)}</p>
+        </div>
+        <div className="bg-slate-100 dark:bg-slate-800/50 p-2 rounded-lg">
+          <span className="text-slate-500 dark:text-slate-400 block mb-1">Instructor</span>
+          <p className="text-slate-700 dark:text-slate-300 font-medium">{record.instructor?.name}</p>
+        </div>
+      </div>
+    </div>
+  ))}
+</div>
 
             {/* ✅ External Pagination for Attendance */}
             {attendanceMeta.last_page > 1 && (
@@ -463,9 +465,9 @@ const TestEvaluationPage = () => {
                               {evaluation.test_type}
                             </h3>
                             <div className="flex flex-wrap gap-2 sm:gap-3 text-xs text-slate-600 dark:text-slate-400">
-                              <span className="flex items-center gap-1"><Calendar size={12} />{formatDate(evaluation.assignment.schedule_date)}</span>
-                              <span className="flex items-center gap-1"><Clock size={12} />{evaluation.assignment.start_time}</span>
-                              <span className="flex items-center gap-1"><User size={12} />{evaluation.assignment.instructor.name}</span>
+                             <span className="flex items-center gap-1"><Calendar size={12} />{formatDate(evaluation.lesson_date)}</span>
+<span className="flex items-center gap-1"><Clock size={12} />{evaluation.lesson_time}</span>
+<span className="flex items-center gap-1"><User size={12} />{evaluation.instructor?.name}</span>
                             </div>
                           </div>
 
@@ -517,8 +519,7 @@ const TestEvaluationPage = () => {
                               <MapPin size={12} className="sm:w-3.5 sm:h-3.5 text-blue-600 dark:text-blue-400" />
                               <h4 className="text-[10px] sm:text-xs font-bold text-blue-700 dark:text-blue-400 uppercase">Location</h4>
                             </div>
-                            <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 break-words">{evaluation.assignment.location}</p>
-                          </div>
+<p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 break-words">{evaluation.location}</p>                          </div>
 
                           {hasResponded && (
                             <div className="mb-4 sm:mb-5 p-3 bg-teal-50 dark:bg-teal-900/20 rounded-xl">
